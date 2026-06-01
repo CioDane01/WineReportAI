@@ -209,7 +209,7 @@ else:
     st.markdown("---")
 
     # --- WORDCLOUD ---
-    st.markdown("<h3 style='text-align: center;'>☁️ Text Mining: Attributi Sensoriali e Linguistici Prevalenti</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center;'>☁️ Word Cloud Sensoriale</h3>", unsafe_allow_html=True)
     testo_unito = " ".join(df_filtrato['description_clean'].dropna().astype(str))
     if len(testo_unito.strip()) > 0:
         wordcloud = WordCloud(width=600, height=250, background_color='white', colormap='plasma', max_words=30).generate(testo_unito)
