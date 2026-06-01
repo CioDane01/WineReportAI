@@ -102,7 +102,7 @@ elif st.session_state.fase_navigazione == 2:
             
     with col_btn_go:
         if st.button("🚀 Avvia Piattaforma e Genera Report", use_container_width=True):
-            if regione_iniziale == "-- S Scegli una Regione --":
+            if regione_iniziale == "-- Scegli una Regione --":
                 st.warning("⚠️ Seleziona una Regione valida per generare i grafici.")
             else:
                 st.session_state.regione_scelta = regione_iniziale
@@ -112,7 +112,7 @@ elif st.session_state.fase_navigazione == 2:
                 st.rerun()
 
 # ==============================================================================
-# FASE 3: DASHBOARD COMPLETA (Sblocco dell'interfaccia analitica)
+# FASE 3: DASHBOARD COMPLETA (Libertà Analitica e Controllo Cross-Regionale)
 # ==============================================================================
 elif st.session_state.fase_navigazione == 3:
     
@@ -225,7 +225,7 @@ elif st.session_state.fase_navigazione == 3:
 
     st.markdown("---")
 
-    # --- 🤖 SEZIONE GPT COMPLETAMENTE AUTOMATIZZATA ---
+    # --- 🤖 SEZIONE GPT AUTOMATIZZATA E COMPLETAMENTE LIBERA ---
     st.subheader("🤖 Bunchy: Generative AI Specialist")
     
     if "last_selected_region" not in st.session_state or st.session_state.last_selected_region != regione_selezionata:
@@ -239,57 +239,60 @@ elif st.session_state.fase_navigazione == 3:
     if not openai_key:
         st.error("⚠️ Chiave 'OPENAI_API_KEY' missing nei secrets di Streamlit.")
     else:
+        # ✅ RIPRISTINO 2: Ripristinato fedelmente il primissimo messaggio di benvenuto originale
         if len(st.session_state.messages) == 0:
-            st.session_state.messages.append({"role": "assistant", "content": "Ciao! Ho ricalibrato i miei sistemi. Adesso ho accesso diretto alla matrice dei dati della selezione corrente. Chiedimi qualsiasi dato analitico, minimo, massimo o confronto strategico!"})
+            st.session_state.messages.append({"role": "assistant", "content": "Ciao! Sono Bunchy. Come posso aiutarti?"})
 
         for message in st.session_state.messages:
             avatar_icon = "🤖" if message["role"] == "assistant" else "👤"
             with st.chat_message(message["role"], avatar=avatar_icon):
                 st.markdown(message["content"])
 
-        if prompt := st.chat_input("Fai una domanda libera sui dati a Bunchy..."):
+        # ✅ MODIFICA 3: Modificato il testo di placeholder della barra di inserimento
+        if prompt := st.chat_input("Fai una domanda a Bunchy"):
             with st.chat_message("user", avatar="👤"):
                 st.markdown(prompt)
             st.session_state.messages.append({"role": "user", "content": prompt})
             
-            # 🚀 GENERAZIONE DIZIONARIO COMPATTO DIRETTAMENTE DAL DATAFRAME FILTRATO
+            # 🚀 GENERAZIONE DIZIONARIO DETTAGLIATO PER LA SELEZIONE CORRENTE
             df_contesto = df_filtrato[['full_name', 'winery_name', 'price', 'points', 'sentiment_score', 'sentiment_label']].copy()
             df_contesto['price'] = df_contesto['price'].fillna("N/D")
             
-            # Convertiamo i record in una lista di dizionari testuali puliti riga per riga per non sprecare token
             lista_vini_raw = ""
             for idx, r in df_contesto.iterrows():
                 lista_vini_raw += f"Etichetta: {r['full_name']} | Azienda: {r['winery_name']} | Prezzo: {r['price']}$ | Punteggio: {r['points']}/100 | SentimentScore: {r['sentiment_score']} ({r['sentiment_label']})\n"
 
-            # Generiamo anche le medie aggregate di tutte le cantine della regione corrente per i confronti veloci
-            df_medie_regionali = df_regione.groupby('winery_name').agg(
+            # ✅ MODIFICA 1: ABBATTIMENTO DEI CONFINI REGIONALI (Matrice Nazionale delle Cantine)
+            # Calcoliamo le medie aggregate di TUTTE le cantine di TUTTE le regioni d'Italia in un colpo solo
+            df_medie_globali = df.groupby(['winery_name', 'region']).agg(
                 sentiment_medio=('sentiment_score', 'mean'),
                 prezzo_medio=('price', 'mean'),
                 punteggio_medio=('points', 'mean'),
                 conteggio_bottiglie=('points', 'count')
-            ).round(2)
+            ).round(2).reset_index()
             
-            stringa_medie_aziende = ""
-            for cantina_k, m in df_medie_regionali.iterrows():
-                p_str = f"{m['prezzo_medio']}$" if not pd.isna(m['prezzo_medio']) else "N/D"
-                stringa_medie_aziende += f"Cantina: {cantina_k} -> SentimentMedio: {m['sentiment_medio']} | PrezzoMedio: {p_str} | VotoMedio: {m['punteggio_medio']}/100 | VolumeVini: {m['conteggio_bottiglie']}\n"
+            stringa_medie_aziende_globali = ""
+            for idx, riga_c in df_medie_globali.iterrows():
+                p_str = f"{riga_c['prezzo_medio']}$" if not pd.isna(riga_c['prezzo_medio']) else "N/D"
+                stringa_medie_aziende_globali += f"Cantina: '{riga_c['winery_name']}' [Regione: {riga_c['region']}] -> SentimentMedio: {riga_c['sentiment_medio']} | PrezzoMedio: {p_str} | VotoMedio: {riga_c['punteggio_medio']}/100 | VolumeVini: {riga_c['conteggio_bottiglie']}\n"
 
             system_instruction = f"""
             Sei Bunchy, l'esperto senior di Market Intelligence collegato in tempo reale al database vinicolo italiano.
-            Il tuo compito è analizzare la tabella grezza che ti viene fornita sotto per rispondere a QUALSIASI domanda analitica o quantitativa.
+            Hai accesso alla matrice dati completa di TUTTE le aziende e le regioni d'Italia per fare confronti incrociati senza limiti territoriali.
             
-            Ecco la matrice dei dati grezzi estratti dal dataset per la selezione corrente:
+            Ecco la matrice dei dati grezzi analitici per le singole etichette della selezione corrente (Regione Attiva sulla dashboard: {regione_selezionata}):
             {lista_vini_raw}
 
-            Ecco lo specchietto delle medie aggregate di TUTTE le cantine presenti in questa regione ({regione_selezionata}):
-            {stringa_medie_aziende}
+            Ecco lo specchietto globale di performance di TUTTE le cantine di TUTTE le regioni d'Italia (Usa questo blocco per confronti nazionali):
+            {stringa_medie_aziende_globali}
 
             Frequenze esatte della Word Cloud visibile all'utente: {parole_chiave_per_bunchy}
 
             REGOLE DI RISPOSTA ASSOLUTE:
-            1. Quando l'utente ti chiede un dato numerico (es. "qual è il prezzo più basso?", "chi ha il sentiment peggiore?", "trova il punteggio massimo"), tu DEVI analizzare l'elenco dei vini fornito sopra, trovare il record con il valore minimo o massimo richiesto e riportare fedelmente il nome del vino, la cantina e la cifra esatta. I dati sono completi, quindi non dire mai che non hai accesso o che le informazioni sono parziali.
-            2. Se l'utente ti chiede conteggi sulle parole, fai riferimento al blocco "Frequenze esatte della Word Cloud" ignorando maiuscole e minuscole.
-            3. Sii un consulente B2B serio, diretto, preciso al millesimo sui numeri e orientato al business strategico. Evita i preamboli inutili o risposte elusive da AI standard.
+            1. Se l'utente ti chiede informazioni o confronti su altre regioni o cantine al di fuori di quella selezionata (es. confrontare una cantina del Friuli con una della Toscana o della Sicilia), DEVI scorrere la lista globale delle cantine italiane fornita sopra, estrarre i dati delle aziende coinvolte e fare il confronto matematico esatto. Non dire mai che sei limitato alla regione corrente.
+            2. Quando l'utente ti chiede un dato quantitativo (es. minimi, massimi, classifiche di prezzo o voti), individua il record esatto nella lista corrispondente e riportalo fedelmente senza arrotondamenti fantasiosi.
+            3. Se l'utente ti chiede conteggi sulle parole, fai riferimento al blocco delle frequenze della Word Cloud.
+            4. Sii un consulente B2B serio, diretto, pragmatico e preciso al millesimo sui numeri. Evita i preamboli inutili o risposte elusive.
             """
 
             try:
@@ -298,7 +301,7 @@ elif st.session_state.fase_navigazione == 3:
                 for msg in st.session_state.messages[-5:]:
                     api_messages.append({"role": msg["role"], "content": msg["content"]})
                     
-                with st.spinner("Bunchy sta interrogando la matrice dati..."):
+                with st.spinner("Bunchy sta interrogando la matrice dati nazionale..."):
                     response = client.chat.completions.create(
                         model="gpt-4o-mini",
                         messages=api_messages,
