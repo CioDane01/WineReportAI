@@ -44,7 +44,7 @@ if st.session_state.fase_navigazione == 1:
     """)
     st.markdown("---")
     
-    st.markdown("Seleziona il Mercato di Export")
+    st.markdown("### Seleziona il Mercato di Export")
     st.markdown("Scegli la nazione di cui desideri analizzare i dati o monitorare i trend.")
     
     nazione_iniziale = st.selectbox(
