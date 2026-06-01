@@ -144,7 +144,7 @@ elif st.session_state.fase_navigazione == 3:
     df_regione = df[df['region'] == regione_selezionata]
     
     livello_analisi = st.sidebar.radio(
-        "2. Livello di Analini:", 
+        "2. Livello di Analisi:", 
         ["Intero Comparto Regionale", "Singola Cantina Specifica"],
         index=0 if st.session_state.livello_scelto == "Intero Comparto Regionale" else 1
     )
@@ -172,7 +172,6 @@ elif st.session_state.fase_navigazione == 3:
     st.title("🍷 WineReportAI")
     st.markdown("Platform B2B di Market Intelligence per l'Export Vinicolo Italiano con Intelligenza Artificiale integrata.")
     st.subheader(titolo_dashboard)
-
 
     # --- VISUALIZZAZIONE KPI ---
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
@@ -246,14 +245,18 @@ elif st.session_state.fase_navigazione == 3:
                 labels={'points': 'Punteggio Critica (points)', 'price': 'Prezzo Bottiglia ($)'},
                 hover_name='full_name',
                 hover_data={
+                    'winery_name': True,  # MODIFICA 1: Sbloccato il nome della cantina sul popup interattivo Plotly
                     'points': ':.1f',
                     'price': ':.1f$',
-                    'wine_type': True,
-                    'winery_name': True
+                    'wine_type': True
                 },
                 template='plotly_white'
             )
-            fig_scatter.update_traces(marker=dict(size=10, opacity=0.7, line=dict(width=1, color='DarkSlateGrey')))
+            # Rinominazione estetica della label dell'hover data nel grafico
+            fig_scatter.update_traces(
+                hovertemplate="<b>%{hovertext}</b><br>Cantina=%{customdata[0]}<br>Punteggio=%{x}<br>Prezzo=%{y}<br>Tipologia=%{customdata[2]}<extra></extra>",
+                marker=dict(size=10, opacity=0.7, line=dict(width=1, color='DarkSlateGrey'))
+            )
             fig_scatter.update_layout(height=400)
             st.plotly_chart(fig_scatter, use_container_width=True)
         else:
@@ -281,8 +284,17 @@ elif st.session_state.fase_navigazione == 3:
 
     # --- 📋 REGISTRO ANALITICO MODIFICATO ---
     with st.expander("📋 Visualizza il Registro Analitico dei Record di Mercato", expanded=False):
-        st.dataframe(df_filtrato[['full_name', 'wine_type', 'points', 'price', 'sentiment_score', 'description']].rename(
-            columns={'full_name': 'Nome Vino / Titolo', 'wine_type': 'Tipologia', 'points': 'Punteggio', 'price': 'Prezzo ($)', 'sentiment_score': 'Sentiment Score', 'description': 'Testo Recensione'}
+        # MODIFICA 2: Inserita la colonna winery_name nel dataframe visualizzato e rinominata in "Azienda / Cantina"
+        st.dataframe(df_filtrato[['full_name', 'winery_name', 'wine_type', 'points', 'price', 'sentiment_score', 'description']].rename(
+            columns={
+                'full_name': 'Nome Vino / Titolo', 
+                'winery_name': 'Azienda / Cantina',
+                'wine_type': 'Tipologia', 
+                'points': 'Punteggio', 
+                'price': 'Prezzo ($)', 
+                'sentiment_score': 'Sentiment Score', 
+                'description': 'Testo Recensione'
+            }
         ), use_container_width=True)
 
     st.markdown("---")
@@ -350,6 +362,17 @@ elif st.session_state.fase_navigazione == 3:
             else:
                 stringa_cantine_peggiori_italia = "Nessuna cantina in Italia registra anomalie negative significative nel dataset."
 
+            # MODIFICA 3: ESTRAZIONE DINAMICA RECORD COMPLETI PEGGIORI PER IL BOT
+            # Estraiamo i 3 vini reali con il sentiment score più basso (più negativo) della regione corrente per passarli a Bunchy
+            df_regione_corrente = df[df['region'] == regione_selezionata]
+            stringa_vini_peggiori_regione = ""
+            if len(df_regione_corrente) > 0:
+                vini_peggiori = df_regione_corrente.sort_values(by='sentiment_score', ascending=True).head(3)
+                for idx, row in vini_peggiori.iterrows():
+                    stringa_vini_peggiori_regione += f"- Vino: '{row['full_name']}' | Prodotto da Cantina: '{row['winery_name']}' | Sentiment Score: {row['sentiment_score']} | Critica Estera: \"{row['description'][:150]}...\"\n"
+            else:
+                stringa_vini_peggiori_regione = "Nessun dato disponibile per questa area."
+
             focus_entita = cantina_selezionata if livello_analisi == "Singola Cantina Specifica" else "intero territorio regionale complessivo"
 
             system_instruction = f"""
@@ -365,6 +388,9 @@ elif st.session_state.fase_navigazione == 3:
             - Sentiment Emotivo Prevalente: {df_filtrato['sentiment_label'].value_counts().index[0] if len(df_filtrato) > 0 else "N/D"}
             - Parole chiave Text Mining: {testo_unito[:300] if len(testo_unito) > 0 else "N/D"}
 
+            DETTAGLIO REALE DEI 3 VINI CON SENTIMENT PIÙ NEGATIVO/BASSO IN ASSOLUTO NELLA REGIONE CORRENTE ({regione_selezionata}):
+            {stringa_vini_peggiori_regione}
+
             Ecco la classifica delle TOP 5 CANTINE CON PIÙ RECENSIONI NEGATIVE IN ASSOLUTO IN TUTTA ITALIA:
             {stringa_cantine_peggiori_italia}
 
@@ -372,15 +398,15 @@ elif st.session_state.fase_navigazione == 3:
             {stringa_benchmark_nazionale}
 
             REGOLE TASSATIVE DI OUTPUT:
-            1. Se l'utente ti chiede un COPYWRITING, un testo pubblicitario, un payoff o uno slogan per il mercato americano, devi scriverlo OBBLIGATORIAMENTE IN LINGUA INGLESE (American English). L'introduzione e la spiegazione della strategia di marketing possono essere in italiano, ma i testi pubblicitari finali devono essere in inglese.
-            2. All'interno del testo pubblicitario (Copy) DEVI INTEGRARE ALMENO 3 o 4 delle parole chiave sensoriali reali che ti ho fornito sopra (es. crisp, mineral, citrus, ecc.). Non usare parole generiche o inventate.
-            3. Fai leva sui dati reali: cita il punteggio reale ({df_filtrato['points'].mean().round(1) if len(df_filtrato) > 0 else 0}) o il volume di recensioni per dare autorevolezza al brand di fronte ai buyer americani.
-            4. COERENZA ENOLOGICA CRITICA: Se stiamo analizzando un vino "Bianco" (White Wine), non inventare mai caratteristiche da vino rosso (es. NO "tannini morbidi", NO "frutti rossi"). Concentrati su acidità, freschezza, note floreali o fruttate bianche in base dei dati.
-            5. Evita risposte standard da AI con elenchi puntati chilometrici. Sii directo, strategico e orientato al business B2B.
-            6. Se l'utente chiede un'analisi strategica, una proposta di posizionamento o una strategia di marketing, basati sui dati reali per formulare una risposta concreta e attuabile. Non fare mai risposte vaghe o generiche. Sii specifico e pragmatico.
-            7. Se l'utente chiede un confronto o una classifica basata sul SENTIMENT NEGATIVO, sulle CRITICHE o sui PUNTEGGI delle regioni o di qualsiasi cantina d'Italia, DEVI USARE I DATI REALI forniti sopra. Leggi il numero esatto di recensioni negative delle cantine o le percentuali delle regioni d'Italia per stabilire chi ha la performance peggiore o migliore. Esegui il confronto basandoti unicamente sui numeri delle liste fornite, senza limitarti alla sola regione corrente.
-            8. Se l'utente chiede un consiglio su come migliorare la percezione del brand o aumentare le vendite, suggerisci strategie basate sui punti di forza reali evidenziati dai dati.
-            9. Se l'utente chiede di scrivere un testo pubblicitario, assicurati che sia copywriting coinvolgente, persuasivo e che rispecchi fedelmente le caratteristiche reali del vino analizzato.
+            1. Se l'utente ti chiede informazioni sui vini negativi, critiche o cantine specifiche della regione attuale, devi leggere la lista "DETTAGLIO REALE DEI 3 VINI CON SENTIMENT PIÙ NEGATIVO" fornita sopra ed estrarre esattamente il nome della cantina e del vino associato. Rispondi in modo chirurgico nominando le aziende.
+            2. Se l'utente ti chiede un COPYWRITING, un testo pubblicitario, un payoff o uno slogan per il mercato americano, devi scriverlo OBBLIGATORIAMENTE IN LINGUA INGLESE (American English). L'introduzione e la spiegazione della strategia di marketing possono essere in italiano, ma i testi pubblicitari finali devono essere in inglese.
+            3. All'interno del testo pubblicitario (Copy) DEVI INTEGRARE ALMENO 3 o 4 delle parole chiave sensoriali reali che ti ho fornito sopra (es. crisp, mineral, citrus, ecc.). Non usare parole generiche o inventate.
+            4. Fai leva sui dati reali: cita il punteggio reale ({df_filtrato['points'].mean().round(1) if len(df_filtrato) > 0 else 0}) o il volume di recensioni per dare autorevolezza al brand di fronte ai buyer americani.
+            5. COERENZA ENOLOGICA CRITICA: Se stiamo analizzando un vino "Bianco" (White Wine), non inventare mai caratteristiche da vino rosso (es. NO "tannini morbidi", NO "frutti rossi"). Concentrati su acidità, freschezza, note floreali o fruttate bianche in base dei dati.
+            6. Evita risposte standard da AI con elenchi puntati chilometrici. Sii directo, strategico e orientato al business B2B.
+            7. Se l'utente chiede un'analisi strategica, una proposta di posizionamento o una strategia di marketing, basati sui dati reali per formulare una risposta concreta e attuabile. Non fare mai risposte vaghe o generiche. Sii specifico e pragmatico.
+            8. Se l'utente chiede un confronto o una classifica basata sul SENTIMENT NEGATIVO, sulle CRITICHE o sui PUNTEGGI delle regioni o di qualsiasi cantina d'Italia, DEVI USARE I DATI REALI forniti sopra. Leggi il numero esatto di recensioni negative delle cantine o le percentuali delle regioni d'Italia per stabilire chi ha la performance peggiore o migliore. Esegui il confronto basandoti unicamente sui numeri delle lists fornite, senza limitarti alla sola regione corrente.
+            9. Se l'utente chiede un consiglio su come migliorare la percezione del brand o aumentare le vendite, suggerisci strategie basate sui punti di forza reali evidenziati dai dati.
             10. Se l'utente chiede un'analisi del sentiment, basati sui dati reali del sentiment prevalente per formulare una risposta concreta su come il vino è percepito dai critici internazionali.
             """
 
