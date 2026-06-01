@@ -49,7 +49,7 @@ if st.session_state.fase_navigazione == 1:
     
     nazione_iniziale = st.selectbox(
         "Seleziona la Nazione Target:", 
-        ["-- Scegli una Nazione --", "Stati Uniti 🇺🇸", "Regno Unito 🇬🇧", "Germania 🇩🇪", "Giappone 🇯🇵"]
+        ["-- S Scegli una Nazione --", "Stati Uniti 🇺🇸", "Regno Unito 🇬🇧", "Germania 🇩🇪", "Giappone 🇯🇵"]
     )
     
     st.markdown("##")
@@ -80,13 +80,13 @@ elif st.session_state.fase_navigazione == 2:
     col_reg, col_liv = st.columns(2)
     
     with col_reg:
-        regione_iniziale = st.selectbox("Seleziona il Territorio d'origine:", ["-- S Scegli una Regione --"] + regioni_disponibili)
+        regione_iniziale = st.selectbox("Seleziona il Territorio d'origine:", ["-- Scegli una Regione --"] + regioni_disponibili)
     
     with col_liv:
         livello_iniziale = st.radio("Scegli il livello di profondità dell'analisi:", ["Intero Comparto Regionale", "Singola Cantina Specifica"])
     
     cantina_iniziale = None
-    if livello_iniziale == "Singola Cantina Specifica" and regione_iniziale != "-- S Scegli una Regione --":
+    if livello_iniziale == "Singola Cantina Specifica" and regione_iniziale != "-- Scegli una Regione --":
         df_regione_init = df[df['region'] == regione_iniziale]
         cantine_disponibili_init = sorted(df_regione_init['winery_name'].unique())
         cantina_iniziale = st.selectbox("Seleziona la Cantina specifica da monitorare:", cantine_disponibili_init)
@@ -112,7 +112,7 @@ elif st.session_state.fase_navigazione == 2:
                 st.rerun()
 
 # ==============================================================================
-# FASE 3: DASHBOARD COMPLETA (Cross-Regional Intelligence Protetta)
+# FASE 3: DASHBOARD COMPLETA (Sblocco dell'interfaccia analitica)
 # ==============================================================================
 elif st.session_state.fase_navigazione == 3:
     
@@ -225,7 +225,7 @@ elif st.session_state.fase_navigazione == 3:
 
     st.markdown("---")
 
-    # --- 🤖 SEZIONE GPT COMPLETAMENTE OTTIMIZZATA E CROSS-REGIONALE ---
+    # --- 🤖 SEZIONE GPT COMPLETAMENTE AUTOMATIZZATA E OTTIMIZZATA ---
     st.subheader("🤖 Bunchy: Generative AI Specialist")
     
     if "last_selected_region" not in st.session_state or st.session_state.last_selected_region != regione_selezionata:
@@ -239,7 +239,7 @@ elif st.session_state.fase_navigazione == 3:
     if not openai_key:
         st.error("⚠️ Chiave 'OPENAI_API_KEY' missing nei secrets di Streamlit.")
     else:
-        # ✅ BENVENUTO RIPRISTINATO ORIGINALE
+        # ✅ FIX 2: Ripristinato fedelmente il messaggio di benvenuto originale
         if len(st.session_state.messages) == 0:
             st.session_state.messages.append({"role": "assistant", "content": "Ciao! Sono Bunchy. Come posso aiutarti?"})
 
@@ -248,70 +248,77 @@ elif st.session_state.fase_navigazione == 3:
             with st.chat_message(message["role"], avatar=avatar_icon):
                 st.markdown(message["content"])
 
-        # ✅ CONTENITORE PULITO PER DIGITARE
+        # ✅ FIX 3: Placeholder della chat pulito e minimale
         if prompt := st.chat_input("Fai una domanda a Bunchy"):
             with st.chat_message("user", avatar="👤"):
                 st.markdown(prompt)
             st.session_state.messages.append({"role": "user", "content": prompt})
             
-            # 1. Matrice Dettagliata della selezione corrente (Leggera, riga per riga)
+            # 🚀 MATRICE DEI DATI FILTRATI PER LA REGIONE ATTIVA
             df_contesto = df_filtrato[['full_name', 'winery_name', 'price', 'points', 'sentiment_score', 'sentiment_label']].copy()
             df_contesto['price'] = df_contesto['price'].fillna("N/D")
             
             lista_vini_raw = ""
-            for idx, r in df_contesto.head(100).iterrows(): # Cap di sicurezza a 100 record per non sforare mai
-                lista_vini_raw += f"Vino: {r['full_name']} | Azienda: {r['winery_name']} | Prezzo: {r['price']}$ | Voto: {r['points']} | Sentiment: {r['sentiment_score']}\n"
+            for idx, r in df_contesto.head(100).iterrows(): # Cap di sicurezza anti-crash
+                lista_vini_raw += f"Etichetta: {r['full_name']} | Azienda: {r['winery_name']} | Prezzo: {r['price']}$ | Punteggio: {r['points']}/100 | SentimentScore: {r['sentiment_score']} ({r['sentiment_label']})\n"
 
-            # 2. 🗺️ STATISTICHE NAZIONALI PRE-CALCOLATE PER REGIONE (Cross-Regional Senza Sforare)
-            df_regioni_globali = df.groupby('region').agg(
-                voto_medio=('points', 'mean'),
-                prezzo_medio=('price', 'mean'),
+            # 📊 MEDIE REGIONALI AGGREGATE (Per i confronti veloci della regione attiva)
+            df_medie_regionali = df_regione.groupby('winery_name').agg(
                 sentiment_medio=('sentiment_score', 'mean'),
-                vini_totali=('points', 'count')
+                prezzo_medio=('price', 'mean'),
+                punteggio_medio=('points', 'mean'),
+                conteggio_bottiglie=('points', 'count')
+            ).round(2)
+            
+            stringa_medie_aziende = ""
+            for cantina_k, m in df_medie_regionali.iterrows():
+                p_str = f"{m['prezzo_medio']}$" if not pd.isna(m['prezzo_medio']) else "N/D"
+                stringa_medie_aziende += f"Cantina: {cantina_k} -> SentimentMedio: {m['sentiment_medio']} | PrezzoMedio: {p_str} | VotoMedio: {m['punteggio_medio']}/100 | VolumeVini: {m['conteggio_bottiglie']}\n"
+
+            # ✅ FIX 1: COMPRESSIONE CROSS-REGIONALE INTELLIGENTE (Niente più Error 400)
+            # Calcoliamo le medie macro di TUTTE le regioni italiane per consentire i confronti territoriali liberi
+            df_macro_regioni = df.groupby('region').agg(
+                voto_macro=('points', 'mean'),
+                prezzo_macro=('price', 'mean'),
+                sentiment_macro=('sentiment_score', 'mean'),
+                totale_vini=('points', 'count')
             ).round(2).reset_index()
             
-            stringa_benchmark_regioni = ""
-            for idx, riga_r in df_regioni_globali.iterrows():
-                stringa_benchmark_regioni += f"Regione: {riga_r['region']} -> VotoMedio: {riga_r['voto_medio']}/100 | PrezzoMedio: {riga_r['prezzo_medio']}$ | SentimentMedio: {riga_r['sentiment_medio']} | Record: {riga_r['vini_totali']}\n"
+            stringa_benchmark_nazionale = ""
+            for idx, row_r in df_macro_regioni.iterrows():
+                stringa_benchmark_nazionale += f"Territorio: {row_r['region']} -> VotoMedio: {row_r['voto_macro']}/100 | PrezzoMedio: {row_r['prezzo_macro']}$ | SentimentMedio: {row_r['sentiment_macro']} | Campioni: {row_r['totale_vini']}\n"
 
-            # 3. 📉 ANALISI ESTREMI NAZIONALI (I 10 vini più cari d'Italia e i 10 più economici per i confronti diretti)
-            df_prezzi_puliti = df.dropna(subset=['price'])
-            top_cari = df_prezzi_puliti.sort_values(by='price', ascending=False).head(10)
-            top_economici = df_prezzi_puliti.sort_values(by='price', ascending=True).head(10)
-            top_voti_italia = df.sort_values(by='points', ascending=False).head(10)
-            flop_sentiment_italia = df.sort_values(by='sentiment_score', ascending=True).head(10)
-
-            estremita_nazionali = "=== TOP 10 VINI PIÙ CARI D'ITALIA ===\n"
-            for idx, r in top_cari.iterrows(): estremita_nazionali += f"- {r['full_name']} ({r['region']}): {r['price']}$ | Voto: {r['points']} | Cantina: {r['winery_name']}\n"
-            
-            estremita_nazionali += "\n=== TOP 10 VINI PIÙ ECONOMICI D'ITALIA ===\n"
-            for idx, r in top_economici.iterrows(): estremita_nazionali += f"- {r['full_name']} ({r['region']}): {r['price']}$ | Voto: {r['points']} | Cantina: {r['winery_name']}\n"
-
-            estremita_nazionali += "\n=== TOP 10 ECCELLENZE ASSOLUTE (VOTO PIÙ ALTO) ===\n"
-            for idx, r in top_voti_italia.iterrows(): estremita_nazionali += f"- {r['full_name']} ({r['region']}): Voto {r['points']}/100 | Prezzo: {r['price']}$ | Cantina: {r['winery_name']}\n"
-
-            estremita_nazionali += "\n=== I 10 VINI CON CRITICA PIÙ NEGATIVA IN ASSOLUTO (SENTIMENT MINIMO) ===\n"
-            for idx, r in flop_sentiment_italia.iterrows(): estremita_nazionali += f"- {r['full_name']} ({r['region']}): Sentiment {r['sentiment_score']} | Voto: {r['points']} | Cantina: {r['winery_name']}\n"
+            # Estraiamo gli estremi assoluti del mercato (i 5 vini più cari e i 5 più economici d'Italia) per rispondere a query specifiche
+            df_ordinato_prezzo = df.dropna(subset=['price']).sort_values(by='price')
+            estremita_nazionali = "=== RECORD VINI PIÙ ECONOMICI D'ITALIA ===\n"
+            for idx, r in df_ordinato_prezzo.head(5).iterrows(): estremita_nazionali += f"- {r['full_name']} ({r['region']}): {r['price']}$ | Azienda: {r['winery_name']}\n"
+            estremita_nazionali += "\n=== RECORD VINI PIÙ COSTOSI D'ITALIA ===\n"
+            for idx, r in df_ordinato_prezzo.tail(5).iterrows(): estremita_nazionali += f"- {r['full_name']} ({r['region']}): {r['price']}$ | Azienda: {r['winery_name']}\n"
 
             system_instruction = f"""
-            Sei Bunchy, il Direttore Creativo senior di Wine Marketing. Hai una panoramica completa di tutta Italia.
-            Il tuo compito è rispondere a QUALSIASI domanda analitica confrontando le regioni o estraendo record esatti.
+            Sei Bunchy, l'esperto senior di Wine Intelligence strategica collegato in tempo reale al database vinicolo italiano.
+            Il tuo compito è analizzare le matrici numeriche che ti vengono fornite sotto per rispondere a QUALSIASI domanda quantitativa dell'utente.
             
-            Ecco la matrice dei dati della SELEZIONE ATTIVA sulla dashboard (Regione: {regione_selezionata}):
+            Ecco la matrice dei dati grezzi estratti dal dataset per la selezione/regione corrente:
             {lista_vini_raw}
 
-            === MEDIE DI CONFRONTO PER TUTTE LE REGIONI D'ITALIA ===
-            {stringa_benchmark_regioni}
+            Ecco lo specchietto delle medie aggregate di TUTTE le cantine presenti nella regione corrente:
+            {stringa_medie_aziende}
 
-            [ESTREMI DI MERCATO NAZIONALE ITALIANO (Usa questi elenchi per rispondere a domande su minimi, massimi e record assoluti cross-regionali)]
+            === DATI DI BENCHMARK PER CONFRONTI CROSS-REGIONALI NAZIONALI ===
+            Usa questo specchietto se l'utente ti chiede confronti con altre regioni d'Italia o dati fuori dalla schermata corrente:
+            {stringa_benchmark_nazionale}
+            
+            [ECCELLENZE E STRATEGIE DI PREZZO NAZIONALI]
             {estremita_nazionali}
 
-            Frequenze della Word Cloud corrente: {parole_chiave_per_bunchy}
+            Frequenze esatte della Word Cloud visibile all'utente: {parole_chiave_per_bunchy}
 
-            REGOLE DI OUTPUT:
-            1. Se l'utente ti chiede confronti tra regioni diverse (es. "Qual è il prezzo più basso o il vino più costoso della Sicilia o della Toscana?" o "Il Friuli costa più della Sicilia?"), consulta lo specchietto delle REGIONI o degli ESTREMI DI MERCATO NAZIONALE fornito sopra. Lì troverai i prezzi e le etichette esatte per dare risposte nazionali anche se ti trovi in un'altra schermata.
-            2. Se l'utente chiede un conteggio delle parole, leggi l'elenco delle frequenze.
-            3. Rispondi in modo diretto, secco, professionale e focalizzato sul business B2B. Non allucinare mai.
+            REGOLE DI RISPOSTA ASSOLUTE:
+            1. Quando l'utente ti chiede un dato numerico (es. "qual è il prezzo più basso?", "trova il punteggio massimo della Sicilia o del Friuli", "confronta questa regione con la Toscana"), tu DEVI analizzare gli elenchi dei vini o il benchmark nazionale fornito sopra, individuare il record o il valore esatto richiesto e riportarlo fedelmente.
+            2. Se l'utente ti chiede informazioni o confronti su altre regioni italiane mentre si trova all'interno della dashboard di un territorio specifico, usa i dati del blocco "CONFRONTI CROSS-REGIONALI NAZIONALI" per imbastire un'analisi comparativa seria e completa senza dire che non puoi uscire dalla regione attuale.
+            3. Se l'utente ti chiede conteggi sulle parole, fai riferimento al blocco "Frequenze esatte della Word Cloud" ignorando maiuscole e minuscole.
+            4. Sii un consulente B2B serio, diretto, preciso al millesimo sui numeri e orientato al business strategico. Evita i preamboli inutili o risposte elusive.
             """
 
             try:
@@ -320,7 +327,7 @@ elif st.session_state.fase_navigazione == 3:
                 for msg in st.session_state.messages[-5:]:
                     api_messages.append({"role": msg["role"], "content": msg["content"]})
                     
-                with st.spinner("Bunchy sta incrociando i dati nazionali..."):
+                with st.spinner("Bunchy sta interrogando la matrice dati..."):
                     response = client.chat.completions.create(
                         model="gpt-4o-mini",
                         messages=api_messages,
