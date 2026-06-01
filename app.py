@@ -19,9 +19,11 @@ try:
 except Exception:
     openai_key = None
 
-# --- GESTIONE DELLO STATO DELL'APPLICAZIONE ---
-if "viaggio_iniziato" not in st.session_state:
-    st.session_state.viaggio_iniziato = False
+# --- GESTIONE DELLO STATO DELL'APPLICAZIONE (3 FASI) ---
+if "fase_navigazione" not in st.session_state:
+    st.session_state.fase_navigazione = 1  # Fase 1: Nazione, Fase 2: Territorio, Fase 3: Dashboard
+if "nazione_scelta" not in st.session_state:
+    st.session_state.nazione_scelta = None
 if "regione_scelta" not in st.session_state:
     st.session_state.regione_scelta = None
 if "livello_scelto" not in st.session_state:
@@ -32,56 +34,101 @@ if "cantina_scelta" not in st.session_state:
 regioni_disponibili = sorted(df['region'].unique())
 
 # ==============================================================================
-# FASE 1: LANDING PAGE D'INGRESSO OBBLIGATORIA (Sidebar Nascosta)
+# FASE 1: SELEZIONE DELLA NAZIONE TARGET (Sidebar Nascosta)
 # ==============================================================================
-if not st.session_state.viaggio_iniziato:
-    
+if st.session_state.fase_navigazione == 1:
     st.title("🍷 WineReportAI")
-    st.markdown("#### Platform B2B di Market Intelligence per l'Export Vinicolo Italiano con Intelligenza Artificiale integrata.")
+    st.markdown("""
+    ### Benvenuto/a! 👋
+    Configura l’analisi di mercato per accedere alla dashboard globale.
+    """)
     st.markdown("---")
     
-    st.markdown("### Benvenuto/a!👋")
-    st.markdown("Configura la tua prima analisi di mercato per accedere alla dashboard globale.")
+    st.markdown("### 🛫 1. Seleziona il Mercato di Export")
+    st.markdown("Scegli la nazione di cui desideri analizzare i dati o monitorare i trend.")
     
-    # Box di selezione direttamente al centro della HOME
+    nazione_iniziale = st.selectbox(
+        "Seleziona la Nazione Target:", 
+        ["-- Scegli una Nazione --", "Stati Uniti 🇺🇸", "Regno Unito 🇬🇧", "Germania 🇩🇪", "Giappone 🇯🇵"]
+    )
+    
+    st.markdown("##")
+    if st.button("Procedi ➡️", use_container_width=True):
+        if nazione_iniziale == "-- Scegli una Nazione --":
+            st.warning("⚠️ Per procedere devi obbligatoriamente selezionare una nazione.")
+        elif nazione_iniziale != "Stati Uniti 🇺🇸":
+            st.info(f"💼 **Modulo {nazione_iniziale} in fase di Roll-out.** I dati relativi ai panel di degustazione esteri di questo mercato sono in fase di elaborazione strategica. Seleziona 'Stati Uniti 🇺🇸' per testare l'MVP della piattaforma.")
+        else:
+            st.session_state.nazione_scelta = nazione_iniziale
+            st.session_state.fase_navigazione = 2
+            st.rerun()
+
+# ==============================================================================
+# FASE 2: CONFIGURAZIONE DEL TERRITORIO (USA Attivo 🇺🇸 - Sidebar Nascosta)
+# ==============================================================================
+elif st.session_state.fase_navigazione == 2:
+    st.title("🍷 WineReportAI")
+    st.markdown("""
+    ### Benvenuto/a! 👋
+    Configura l’analisi di mercato per accedere alla dashboard globale.
+    """)
+    st.markdown("---")
+    
+    st.success(f"🎯 **Mercato Target Selezionato:** {st.session_state.nazione_scelta}")
+    st.markdown("### 🗺️ 2. Configura l'Analisi Territoriale")
+    
     col_reg, col_liv = st.columns(2)
     
     with col_reg:
-        regione_iniziale = st.selectbox("1. Seleziona il Territorio d'origine:", ["-- Scegli una Regione --"] + regioni_disponibili)
+        regione_iniziale = st.selectbox("Seleziona il Territorio d'origine:", ["-- Scegli una Regione --"] + regioni_disponibili)
     
     with col_liv:
-        livello_iniziale = st.radio("2. Scegli il livello di profondità dell'analisi:", ["Intero Comparto Regionale", "Singola Cantina Specifica"])
+        livello_iniziale = st.radio("Scegli il livello di profondità dell'analisi:", ["Intero Comparto Regionale", "Singola Cantina Specifica"])
     
-    # Se seleziona la singola cantina, mostriamo dinamicamente il terzo menu a comparsa
     cantina_iniziale = None
     if livello_iniziale == "Singola Cantina Specifica" and regione_iniziale != "-- Scegli una Regione --":
         df_regione_init = df[df['region'] == regione_iniziale]
         cantine_disponibili_init = sorted(df_regione_init['winery_name'].unique())
-        cantina_iniziale = st.selectbox("3. Seleziona la Cantina specifica da monitorare:", cantine_disponibili_init)
-    
+        cantina_iniziale = st.selectbox("Seleziona la Cantina specifica da monitorare:", cantine_disponibili_init)
+        
     st.markdown("##")
     
-    # Tasto di Avvio per sbloccare la piattaforma
-    if st.button("🚀 Avvia e Genera Report", use_container_width=True):
-        if regione_iniziale == "-- Scegli una Regione --": # Controllo validità reale
-            st.warning("⚠️ Per procedere devi obbligatoriamente selezionare una Regione valida.")
-        else:
-            # Salviamo le configurazioni nello stato di Streamlit e attiviamo il software
-            st.session_state.regione_scelta = regione_iniziale
-            st.session_state.livello_scelto = livello_iniziale
-            st.session_state.cantina_scelta = cantina_iniziale
-            st.session_state.viaggio_iniziato = True
-            st.rerun() # Forza il rinfresco immediato per passare alla dashboard
+    col_btn_back, col_btn_go = st.columns([1, 2])
+    with col_btn_back:
+        if st.button("⬅️ Cambia Nazione", use_container_width=True):
+            st.session_state.fase_navigazione = 1
+            st.session_state.nazione_scelta = None
+            st.rerun()
+            
+    with col_btn_go:
+        if st.button("🚀 Avvia Piattaforma e Genera Report", use_container_width=True):
+            if regione_iniziale == "-- Scegli una Regione --":
+                st.warning("⚠️ Seleziona una Regione valida per generare i grafici.")
+            else:
+                st.session_state.regione_scelta = regione_iniziale
+                st.session_state.livello_scelto = livello_iniziale
+                st.session_state.cantina_scelta = cantina_iniziale
+                st.session_state.fase_navigazione = 3
+                st.rerun()
 
 # ==============================================================================
-# FASE 2: APPLICAZIONE COMPLETA SBLOCCATA (Con Sidebar Attiva per modifiche)
+# FASE 3: DASHBOARD COMPLETA SBLOCCATA (Sidebar Attiva per modifiche rapide)
 # ==============================================================================
-else:
+elif st.session_state.fase_navigazione == 3:
     
-    # --- CONFIGURAZIONE BARRA LATERALE (Compare solo ora per ricalibrare i filtri) ---
+    # --- CONFIGURAZIONE BARRA LATERALE ---
     st.sidebar.header("Configurazione Analisi")
     
-    # La selectbox della barra si sincronizza automaticamente con la scelta iniziale della home
+    # Tasto di reset totale per tornare alla Fase 1 in cima alla sidebar
+    if st.sidebar.button("⬅️ Cambia Nazione Target", use_container_width=True):
+        st.session_state.fase_navigazione = 1
+        st.session_state.nazione_scelta = None
+        st.session_state.regione_scelta = None
+        st.session_state.cantina_scelta = None
+        st.rerun()
+        
+    st.sidebar.markdown("---")
+    
     regione_selezionata = st.sidebar.selectbox(
         "1. Seleziona il Territorio:", 
         regioni_disponibili, 
@@ -97,8 +144,6 @@ else:
     
     if livello_analisi == "Singola Cantina Specifica":
         cantine_disponibili = sorted(df_regione['winery_name'].unique())
-        
-        # Gestiamo l'indice di default della cantina per evitare crash se si cambia regione dalla sidebar
         default_index = 0
         if st.session_state.cantina_scelta in cantine_disponibili and regione_selezionata == st.session_state.regione_scelta:
             default_index = cantine_disponibili.index(st.session_state.cantina_scelta)
@@ -110,7 +155,7 @@ else:
         df_filtrato = df_regione
         titolo_dashboard = f"📊 Analisi Macro-Trend Territoriali: {regione_selezionata}"
 
-    # Aggiorniamo lo stato interno se l'utente cambia filtri al volo dalla sidebar
+    # Sincronizziamo lo stato interno in caso di modifiche al volo dalla sidebar
     st.session_state.regione_scelta = regione_selezionata
     st.session_state.livello_scelto = livello_analisi
     if livello_analisi == "Singola Cantina Specifica":
@@ -208,7 +253,7 @@ else:
 
     st.markdown("---")
 
-    # --- WORDCLOUD ---
+    # --- CLOUD WORD SENSORIALE CENTRATA ---
     st.markdown("<h3 style='text-align: center;'>☁️ Word Cloud Sensoriale</h3>", unsafe_allow_html=True)
     testo_unito = " ".join(df_filtrato['description_clean'].dropna().astype(str))
     if len(testo_unito.strip()) > 0:
@@ -222,7 +267,7 @@ else:
         with col_centro_wc:
             st.pyplot(fig_wc)
     else:
-        st.info("Testo insufficiente per esrarre parole chiave.")
+        st.info("Testo insufficiente per estrarre parole chiave.")
 
     st.markdown("---")
 
