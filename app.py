@@ -40,11 +40,11 @@ if st.session_state.fase_navigazione == 1:
     st.title("🍷 WineReportAI")
     st.markdown("""
     ### Benvenuto/a! 👋
-    Configura l’analisi di mercato per accedere alla dashboard globale.
+    Platform B2B di Market Intelligence per l'Export Vinicolo Italiano con Intelligenza Artificiale integrata
     """)
     st.markdown("---")
     
-    st.markdown("### 🛫 1. Seleziona il Mercato di Export")
+    st.markdown("Seleziona il Mercato di Export")
     st.markdown("Scegli la nazione di cui desideri analizzare i dati o monitorare i trend.")
     
     nazione_iniziale = st.selectbox(
@@ -116,6 +116,13 @@ elif st.session_state.fase_navigazione == 2:
 # ==============================================================================
 elif st.session_state.fase_navigazione == 3:
     
+    # TRUCCO CSS/JS: Forza il browser (specialmente mobile) a scrollare in cima all'header
+    st.components.v1.html(
+        "<script>window.parent.document.querySelector('.main').scrollTo(0,0);</script>",
+        height=0,
+        width=0
+    )
+    
     # --- CONFIGURAZIONE BARRA LATERALE ---
     st.sidebar.header("Configurazione Analisi")
     
@@ -137,7 +144,7 @@ elif st.session_state.fase_navigazione == 3:
     df_regione = df[df['region'] == regione_selezionata]
     
     livello_analisi = st.sidebar.radio(
-        "2. Livello di Analisi:", 
+        "2. Livello di Analini:", 
         ["Intero Comparto Regionale", "Singola Cantina Specifica"],
         index=0 if st.session_state.livello_scelto == "Intero Comparto Regionale" else 1
     )
@@ -163,8 +170,9 @@ elif st.session_state.fase_navigazione == 3:
 
     # --- INTERFACCIA DASHBOARD ATTIVA ---
     st.title("🍷 WineReportAI")
-    st.markdown("Platform B2B di Market Intelligence per l'Export Vinicolo Italiano con Assistente LLM integrato.")
+    st.markdown("Platform B2B di Market Intelligence per l'Export Vinicolo Italiano con Intelligenza Artificiale integrata.")
     st.subheader(titolo_dashboard)
+
 
     # --- VISUALIZZAZIONE KPI ---
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
