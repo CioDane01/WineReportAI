@@ -1,2 +1,0 @@
-# WineExpertIA
-Dashboard e Chatbot
