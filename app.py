@@ -82,7 +82,7 @@ elif st.session_state.fase_navigazione == 2:
     with col_reg:
         regione_iniziale = st.selectbox("Seleziona il Territorio d'origine:", ["-- Scegli una Regione --"] + regioni_disponibili)
     
-    with col_liv: # ✅ FISSO: Rimosso il vecchio errore di assegnazione 'with col_liv = col_liv:'
+    with col_liv:
         livello_iniziale = st.radio("Scegli il livello di profondità dell'analisi:", ["Intero Comparto Regionale", "Singola Cantina Specifica"])
     
     cantina_iniziale = None
@@ -275,7 +275,6 @@ elif st.session_state.fase_navigazione == 3:
         with col_centro_wc:
             st.pyplot(fig_wc)
             
-        # 🎯 DETERMINISTICO: Calcolo basato sulle stringhe reali per passare dati inattaccabili al modello
         testo_minuscolo_globale = testo_unito.lower()
         top_termini_wc = list(wordcloud.words_.keys())[:12]
         
@@ -377,13 +376,29 @@ elif st.session_state.fase_navigazione == 3:
                 stringa_cantine_peggiori_italia = "Nessuna cantina in Italia registra anomalie negative significative nel dataset."
 
             df_regione_corrente = df[df['region'] == regione_selezionata]
+            
+            # 1. 🍷 LOGICA DEI VINI PEGGIORE (Record Singolo)
             stringa_vini_peggiori_regione = ""
             if len(df_regione_corrente) > 0:
                 vini_peggiori = df_regione_corrente.sort_values(by='sentiment_score', ascending=True).head(3)
                 for idx, row in vini_peggiori.iterrows():
-                    stringa_vini_peggiori_regione += f"- Vino: '{row['full_name']}' | Prodotto da Cantina: '{row['winery_name']}' | Sentiment Score: {row['sentiment_score']} | Critica Estera: \"{row['description'][:150]}...\"\n"
+                    stringa_vini_peggiori_regione += f"- Vino Singolo: '{row['full_name']}' | Cantina: '{row['winery_name']}' | Sentiment Score Vino: {row['sentiment_score']} | Recensione: \"{row['description'][:120]}...\"\n"
             else:
-                stringa_vini_peggiori_regione = "Nessun dato disponibile per questa area."
+                stringa_vini_peggiori_regione = "Nessun dato disponibile."
+
+            # 2. 🏢 NUOVA LOGICA AGGREGATA DELLE CANTINE PEGGIORE (Media Aziendale)
+            stringa_cantine_peggiori_regione = ""
+            if len(df_regione_corrente) > 0:
+                # Calcoliamo la media del sentiment raggruppando per cantina e prendiamo le 3 peggiori in assoluto
+                medie_cantine = df_regione_corrente.groupby('winery_name').agg(
+                    sentiment_medio=('sentiment_score', 'mean'),
+                    numero_recensioni=('sentiment_score', 'count')
+                ).sort_values(by='sentiment_medio', ascending=True).head(3)
+                
+                for cantina_nome, metrics in medie_cantine.iterrows():
+                    stringa_cantine_peggiori_regione += f"- Cantina: '{cantina_nome}' | SENTIMENT MEDIO AZIENDALE GENERALE: {round(metrics['sentiment_medio'], 4)} (Calcolato su un totale di {metrics['numero_recensioni']} vini recensiti)\n"
+            else:
+                stringa_cantine_peggiori_regione = "Nessun dato aziendale disponibile."
 
             focus_entita = cantina_selezionata if livello_analisi == "Singola Cantina Specifica" else "intero territorio regionale complessivo"
 
@@ -398,10 +413,13 @@ elif st.session_state.fase_navigazione == 3:
             - Punteggio Medio della Critica Internazionale: {df_filtrato['points'].mean().round(1) if len(df_filtrato) > 0 else 0}/100
             - Prezzo Medio di Vendita stimato (Export): {f"{df_filtrato['price'].mean().round(1)}$" if not pd.isna(df_filtrato['price'].mean()) else "N/D"}
             - Sentiment Emotivo Prevalente: {df_filtrato['sentiment_label'].value_counts().index[0] if len(df_filtrato) > 0 else "N/D"}
-            - DICHIARAZIONE MATEMATICA DELLE FREQUENZE DELLA WORD CLOUD (Usa questi dati reali per rispondere sui conteggi delle parole): {parole_chiave_per_bunchy}
+            - DICHIARAZIONE MATEMATICA DELLE FREQUENZE DELLA WORD CLOUD: {parole_chiave_per_bunchy}
 
-            DETTAGLIO REALE DEI 3 VINI CON SENTIMENT PIÙ NEGATIVO/BASSO IN ASSOLUTO NELLA REGIONE CORRENTE ({regione_selezionata}):
+            [DATI DI DETTAGLIO PER I SINGOLI VINI COINVOLTI NELLA REGIONE CORRENTE ({regione_selezionata})]:
             {stringa_vini_peggiori_regione}
+
+            [DATI DI DETTAGLIO DELLE MEDIE GENERALI COMPLESSIVE DELLE CANTINE NELLA REGIONE CORRENTE ({regione_selezionata})]:
+            {stringa_cantine_peggiori_regione}
 
             Ecco la classifica delle TOP 5 CANTINE CON PIÙ RECENSIONI NEGATIVE IN ASSOLUTO IN TUTTA ITALIA:
             {stringa_cantine_peggiori_italia}
@@ -410,18 +428,11 @@ elif st.session_state.fase_navigazione == 3:
             {stringa_benchmark_nazionale}
 
             REGOLE TASSATIVE DI OUTPUT PER LE RICHIESTE DEGLI UTENTI:
-            1. Se l'utente ti chiede quante volte compare o viene citata una determinata parola (es. "Offer", "white", "citrus", ecc.), devi prendere la parola cercata, convertirla in minuscolo, e cercare la corrispondenza esatta nella lista "DICHIARAZIONE MATEMATICA DELLE FREQUENZE". Leggi il numero associato racchiuso tra parentesi (es. white (211 volte), offer (198 volte)) e scrivi unicamente quel numero reale. NON dire mai che compare 1 volta, NON inventare cifre e non usare risposte elusive. Sii matematicamente onesto.
-            2. Se l'utente ti chiede informazioni sui vini negativi, critiche o cantine specifiche della regione attuale, devi leggere la lista "DETTAGLIO REALE DEI 3 VINI CON SENTIMENT PIÙ NEGATIVO" fornita sopra ed estrarre esattamente il nome della cantina e del vino associato. Rispondi in modo chirurgico nominando le aziende.
-            3. Se l'utente ti chiede un COPYWRITING, un testo pubblicitario, un payoff o uno slogan per il mercato americano, devi scriverlo OBBLIGATORIAMENTE IN LINGUA INGLESE (American English). L'introduzione e la spiegazione della strategia di marketing possono essere in italiano, ma i testi pubblicitari finali devono essere in inglese.
-            4. All'interno del testo pubblicitario (Copy) DEVI INTEGRARE ALMENO 3 o 4 delle parole chiave sensoriali reali che ti ho fornito sopra (es. crisp, mineral, citrus, ecc.). Non usare parole generic o inventate.
-            5. Fai leva sui dati reali: cita il punteggio reale ({df_filtrato['points'].mean().round(1) if len(df_filtrato) > 0 else 0}) o il volume di recensioni per dare autorevolezza al brand di fronte ai buyer americani.
-            6. COERENZA ENOLOGICA CRITICA: Se stiamo analizzando un vino "Bianco" (White Wine), non inventare mai caratteristiche da vino rosso (es. NO "tannini morbidi", NO "frutti rossi"). Concentrati su acidità, freschezza, note floreali o fruttate bianche in base dei dati.
-            7. Evita risposte standard da AI con elenchi puntati chilometrici. Sii directo, strategico e orientato al business B2B.
-            8. Se l'utente chiede un'analisi strategica, una proposta di posizionamento o una strategia di marketing, basati sui dati reali per formulare una risposta concreta e attuabile. Non fare mai risposte vaghe o generiche. Sii specifico e pragmatico.
-            9. Se l'utente chiede un confronto o una classifica basata sul SENTIMENT NEGATIVO, sulle CRITICHE o sui PUNTEGGI delle regioni o di qualsiasi cantina d'Italia, DEVI USARE I DATI REALI forniti sopra. Leggi il numero esatto di recensioni negative delle cantine o le percentuali delle regioni d'Italia per stabilire chi ha la performance peggiore o migliore. Esegui il confronto basandoti unicamente sui numeri delle liste fornite, senza limitarti alla sola regione corrente.
-            10. Se l'utente chiede un consiglio su come migliorare la percezione del brand o aumentare le vendite, suggerisci strategie basate sui punti di forza reali evidenziati dai dati.
-            11. Se l'utente chiede di scrivere un testo pubblicitario, assicurati che sia copywriting coinvolgente, persuasivo e che rispecchi fedelmente le caratteristiche reali del vino analizzato.
-            12. Se l'utente chiede un'analisi del sentiment, basati sui dati reali del sentiment prevalente per formulare una risposta concreta su come il vino è percepito dai critici internazionali.
+            1. SE L'UTENTE TI CHIEDE IL VINO CON IL SENTIMENT PIÙ BASSO, devi guardare la lista "[DATI DI DETTAGLIO PER I SINGOLI VINI COINVOLTI]" ed estrarre il nome esatto della bottiglia con il valore più basso.
+            2. SE L'UTENTE TI CHIEDE LA CANTINA CON IL SENTIMENT PIÙ BASSO (O LA MEDIA GENERALE DELLA CANTINA), DEVI ASSOLUTAMENTE GUARDARE LA LISTA "[DATI DI DETTAGLIO DELLE MEDIE GENERALI COMPLESSIVE DELLE CANTINE]" e leggere chi ha il SENTIMENT MEDIO AZIENDALE GENERALE più basso. Spiega chiaramente all'utente che questo valore rappresenta la media aggregata di tutti i loro prodotti e non l'andamento di un singolo vino isolato. Sii estremamente rigoroso nel separare il concetto di "singolo vino" da "media dell'azienda".
+            3. Se l'utente ti chiede quante volte compare o viene citata una determinata parola della Word Cloud, cercala nella lista "DICHIARAZIONE MATEMATICA DELLE FREQUENZE", prendi il numero tra parentesi e rispondi citando quello.
+            4. Se l'utente ti chiede un COPYWRITING, scrivilo in American English integrando almeno 3 o 4 parole chiave sensoriali reali fornite sopra.
+            5. Evita risposte standard da AI con elenchi puntati chilometrici. Sii diretto, strategico e orientato al business B2B.
             """
 
             try:
