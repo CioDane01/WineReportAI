@@ -49,7 +49,7 @@ if st.session_state.fase_navigazione == 1:
     
     nazione_iniziale = st.selectbox(
         "Seleziona la Nazione Target:", 
-        ["-- Scegli una Nazione --", "Stati Uniti 🇺🇸", "Regno Unito 🇬🇧", "Germania 🇩🇪", "Giappone 🇯🇵"]
+        ["-- S Scegli una Nazione --", "Stati Uniti 🇺🇸", "Regno Unito 🇬🇧", "Germania 🇩🇪", "Giappone 🇯🇵"]
     )
     
     st.markdown("##")
@@ -57,7 +57,7 @@ if st.session_state.fase_navigazione == 1:
         if nazione_iniziale == "-- Scegli una Nazione --":
             st.warning("⚠️ Per procedere devi obbligatoriamente selezionare una nazione.")
         elif nazione_iniziale != "Stati Uniti 🇺🇸":
-            st.info(f"💼 **Modulo {nazione_iniziale} in fase di Roll-out.** I dati sono in fase di elaborazione strategica. Seleziona 'Stati Uniti 🇺🇸' per testare l'MVP.")
+            st.info(f"💼 **Modulo {nazione_iniziale} in fase di Roll-out.** I dati sono in fase di elaborazione strategica. Seleziona 'Stati Uniti 🇺🇸' per testare l'MVP della piattaforma.")
         else:
             st.session_state.nazione_scelta = nazione_iniziale
             st.session_state.fase_navigazione = 2
@@ -80,13 +80,13 @@ elif st.session_state.fase_navigazione == 2:
     col_reg, col_liv = st.columns(2)
     
     with col_reg:
-        regione_iniziale = st.selectbox("Seleziona il Territorio d'origine:", ["-- S Scegli una Regione --"] + regioni_disponibili)
+        regione_iniziale = st.selectbox("Seleziona il Territorio d'origine:", ["-- Scegli una Regione --"] + regioni_disponibili)
     
     with col_liv:
         livello_iniziale = st.radio("Scegli il livello di profondità dell'analisi:", ["Intero Comparto Regionale", "Singola Cantina Specifica"])
     
     cantina_iniziale = None
-    if livello_iniziale == "Singola Cantina Specifica" and regione_iniziale != "-- S Scegli una Regione --":
+    if livello_iniziale == "Singola Cantina Specifica" and regione_iniziale != "-- Scegli una Regione --":
         df_regione_init = df[df['region'] == regione_iniziale]
         cantine_disponibili_init = sorted(df_regione_init['winery_name'].unique())
         cantina_iniziale = st.selectbox("Seleziona la Cantina specifica da monitorare:", cantine_disponibili_init)
@@ -112,7 +112,7 @@ elif st.session_state.fase_navigazione == 2:
                 st.rerun()
 
 # ==============================================================================
-# FASE 3: DASHBOARD COMPLETA AUTOMATIZZATA (L'IA legge direttamente il CSV filtrato)
+# FASE 3: DASHBOARD COMPLETA (Sblocco dell'interfaccia analitica)
 # ==============================================================================
 elif st.session_state.fase_navigazione == 3:
     
@@ -153,7 +153,7 @@ elif st.session_state.fase_navigazione == 3:
     st.markdown("Platform B2B di Market Intelligence per l'Export Vinicolo Italiano con Intelligenza Artificiale integrata.")
     st.subheader(titolo_dashboard)
 
-    # --- KPI DURI ---
+    # --- KPI VISIVI ---
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
     with kpi1:
         st.metric("Volume Recensioni Estere", len(df_filtrato))
@@ -188,7 +188,7 @@ elif st.session_state.fase_navigazione == 3:
 
     st.markdown("---")
 
-    # --- WORD CLOUD SENSORIALE ---
+    # --- CLOUD WORD SENSORIALE ---
     st.markdown("<h3 style='text-align: center;'>☁️ Word Cloud Sensoriale</h3>", unsafe_allow_html=True)
     testo_unito = " ".join(df_filtrato['description_clean'].dropna().astype(str))
     
@@ -204,7 +204,6 @@ elif st.session_state.fase_navigazione == 3:
         with col_centro_wc:
             st.pyplot(fig_wc)
             
-        # Calcolo frequenze deterministico della Word Cloud per Bunchy
         testo_minuscolo_globale = testo_unito.lower()
         top_termini_wc = list(wordcloud.words_.keys())[:12]
         elenco_conteggi = []
@@ -226,7 +225,7 @@ elif st.session_state.fase_navigazione == 3:
 
     st.markdown("---")
 
-    # --- 🤖 ASSISTENTE INTELLIGENTE CON ACCESSO REALE AI DATI DEL CSV DEL REGISTRO ---
+    # --- 🤖 SEZIONE GPT COMPLETAMENTE AUTOMATIZZATA ---
     st.subheader("🤖 Bunchy: Generative AI Specialist")
     
     if "last_selected_region" not in st.session_state or st.session_state.last_selected_region != regione_selezionata:
@@ -238,61 +237,59 @@ elif st.session_state.fase_navigazione == 3:
         st.session_state.last_selected_winery = cantina_selezionata
 
     if not openai_key:
-        st.error("⚠️ Chiave 'OPENAI_API_KEY' missing nei secrets.")
+        st.error("⚠️ Chiave 'OPENAI_API_KEY' missing nei secrets di Streamlit.")
     else:
         if len(st.session_state.messages) == 0:
-            st.session_state.messages.append({"role": "assistant", "content": "Ciao! Sono Bunchy. Ora posso analizzare l'intero database della selezione corrente in tempo reale. Cosa desideri estrarre o analizzare?"})
+            st.session_state.messages.append({"role": "assistant", "content": "Ciao! Ho ricalibrato i miei sistemi. Adesso ho accesso diretto alla matrice dei dati della selezione corrente. Chiedimi qualsiasi dato analitico, minimo, massimo o confronto strategico!"})
 
         for message in st.session_state.messages:
             avatar_icon = "🤖" if message["role"] == "assistant" else "👤"
             with st.chat_message(message["role"], avatar=avatar_icon):
                 st.markdown(message["content"])
 
-        if prompt := st.chat_input("Fai una domanda analitica o di marketing a Bunchy..."):
+        if prompt := st.chat_input("Fai una domanda libera sui dati a Bunchy..."):
             with st.chat_message("user", avatar="👤"):
                 st.markdown(prompt)
             st.session_state.messages.append({"role": "user", "content": prompt})
             
-            # 🚀 TRASFORMAZIONE DATASET IN STRIGA DI TESTO PULITA PER IL BOT
-            # Sganciamo l'intero contenuto del CSV filtrato direttamente nel cervello di Bunchy
-            df_contesto_bot = df_filtrato[['full_name', 'winery_name', 'price', 'points', 'sentiment_score', 'sentiment_label']].copy()
-            df_contesto_bot['price'] = df_contesto_bot['price'].fillna("N/D")
+            # 🚀 GENERAZIONE DIZIONARIO COMPATTO DIRETTAMENTE DAL DATAFRAME FILTRATO
+            df_contesto = df_filtrato[['full_name', 'winery_name', 'price', 'points', 'sentiment_score', 'sentiment_label']].copy()
+            df_contesto['price'] = df_contesto['price'].fillna("N/D")
             
-            # Generiamo un catalogo di testo compatto ma completissimo riga per riga
-            lista_vini_reali_stringa = ""
-            for idx, riga in df_contesto_bot.iterrows():
-                lista_vini_reali_stringa += f"- WINE: {riga['full_name']} | WINERY: {riga['winery_name']} | PRICE: {riga['price']}$ | POINTS: {riga['points']}/100 | SENTIMENT SCORE: {riga['sentiment_score']} ({riga['sentiment_label']})\n"
+            # Convertiamo i record in una lista di dizionari testuali puliti riga per riga per non sprecare token
+            lista_vini_raw = ""
+            for idx, r in df_contesto.iterrows():
+                lista_vini_raw += f"Etichetta: {r['full_name']} | Azienda: {r['winery_name']} | Prezzo: {r['price']}$ | Punteggio: {r['points']}/100 | SentimentScore: {r['sentiment_score']} ({r['sentiment_label']})\n"
 
-            # 📊 Calcolo delle medie aziendali aggregate per la regione corrente
-            medie_aziendali_regione = df_regione.groupby('winery_name').agg(
+            # Generiamo anche le medie aggregate di tutte le cantine della regione corrente per i confronti veloci
+            df_medie_regionali = df_regione.groupby('winery_name').agg(
                 sentiment_medio=('sentiment_score', 'mean'),
                 prezzo_medio=('price', 'mean'),
                 punteggio_medio=('points', 'mean'),
-                totale_recensioni=('points', 'count')
-            ).round(2).to_dict(orient='index')
+                conteggio_bottiglie=('points', 'count')
+            ).round(2)
             
             stringa_medie_aziende = ""
-            for cantina_k, m in medie_aziendali_regione.items():
+            for cantina_k, m in df_medie_regionali.iterrows():
                 p_str = f"{m['prezzo_medio']}$" if not pd.isna(m['prezzo_medio']) else "N/D"
-                stringa_medie_aziende += f"- AZIENDA: '{cantina_k}' | Sentiment Medio: {m['sentiment_medio']} | Prezzo Medio: {p_str} | Voto Medio: {m['punteggio_medio']}/100 | Vini in Catalogo: {m['totale_recensioni']}\n"
+                stringa_medie_aziende += f"Cantina: {cantina_k} -> SentimentMedio: {m['sentiment_medio']} | PrezzoMedio: {p_str} | VotoMedio: {m['punteggio_medio']}/100 | VolumeVini: {m['conteggio_bottiglie']}\n"
 
             system_instruction = f"""
-            Sei Bunchy, l'esperto B2B di Market Intelligence collegato in tempo reale al database vinicolo. 
-            Il tuo compito è analizzare la lista strutturata estratta dal file CSV che ti viene fornita sotto per rispondere a QUALSIASI domanda quantitativa dell'utente.
+            Sei Bunchy, l'esperto senior di Market Intelligence collegato in tempo reale al database vinicolo italiano.
+            Il tuo compito è analizzare la tabella grezza che ti viene fornita sotto per rispondere a QUALSIASI domanda analitica o quantitativa.
             
-            Ecco i dati reali estratti DIRETTAMENTE DAL FILE CSV per la selezione corrente ({focus_entita} - {regione_selezionata}):
-            {lista_vini_reali_stringa}
+            Ecco la matrice dei dati grezzi estratti dal dataset per la selezione corrente:
+            {lista_vini_raw}
 
-            Ecco il riepilogo delle MEDIE AGGREGATE DI TUTTE LE CANTINE del territorio ({regione_selezionata}):
+            Ecco lo specchietto delle medie aggregate di TUTTE le cantine presenti in questa regione ({regione_selezionata}):
             {stringa_medie_aziende}
 
-            Frequenze della Word Cloud visibile all'utente: {parole_chiave_per_bunchy}
+            Frequenze esatte della Word Cloud visibile all'utente: {parole_chiave_per_bunchy}
 
-            REGOLE DI RISPOSTA TASSATIVE:
-            1. Se l'utente ti chiede informazioni su minimi, massimi, classifiche o dati specifici (es. "qual è il prezzo più basso?", "quale vino ha il sentiment peggiore?", "mostrami le cantine in ordine di prezzo"), DEVI scansionare riga per riga l'elenco dei vini reali o delle medie aziendali sopra, trovare i valori esatti (es. il valore minimo della colonna PRICE o SENTIMENT SCORE) e restituire il nome del vino e della cantina corrispondente. Non inventare nulla, non dire che non hai accesso ai dati. I dati ce li hai qui davanti.
-            2. Distingui sempre tra il "singolo vino con il sentiment/prezzo più basso" e "l'azienda con la media complessiva più bassa". Sono due calcoli diversi.
-            3. Se l'utente ti chiede un conteggio delle parole nella Word Cloud, leggi l'elenco delle frequenze fornito sopra.
-            4. Evita risposte standard da AI banali, sii un analista di mercato pragmatico ed estremamente accurato.
+            REGOLE DI RISPOSTA ASSOLUTE:
+            1. Quando l'utente ti chiede un dato numerico (es. "qual è il prezzo più basso?", "chi ha il sentiment peggiore?", "trova il punteggio massimo"), tu DEVI analizzare l'elenco dei vini fornito sopra, trovare il record con il valore minimo o massimo richiesto e riportare fedelmente il nome del vino, la cantina e la cifra esatta. I dati sono completi, quindi non dire mai che non hai accesso o che le informazioni sono parziali.
+            2. Se l'utente ti chiede conteggi sulle parole, fai riferimento al blocco "Frequenze esatte della Word Cloud" ignorando maiuscole e minuscole.
+            3. Sii un consulente B2B serio, diretto, preciso al millesimo sui numeri e orientato al business strategico. Evita i preamboli inutili o risposte elusive da AI standard.
             """
 
             try:
@@ -301,8 +298,12 @@ elif st.session_state.fase_navigazione == 3:
                 for msg in st.session_state.messages[-5:]:
                     api_messages.append({"role": msg["role"], "content": msg["content"]})
                     
-                with st.spinner("Bunchy sta interrogando il database reale..."):
-                    response = client.chat.completions.create(model="gpt-4o-mini", messages=api_messages, temperature=0.1)
+                with st.spinner("Bunchy sta interrogando la matrice dati..."):
+                    response = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=api_messages,
+                        temperature=0.1
+                    )
                     
                 risposta_llm = response.choices[0].message.content
                 with st.chat_message("assistant", avatar="🤖"):
@@ -310,4 +311,4 @@ elif st.session_state.fase_navigazione == 3:
                 st.session_state.messages.append({"role": "assistant", "content": risposta_llm})
                 
             except Exception as e:
-                st.error(f"Errore: {e}")
+                st.error(f"Errore di comunicazione: {e}")
