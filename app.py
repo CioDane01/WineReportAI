@@ -116,11 +116,16 @@ elif st.session_state.fase_navigazione == 2:
 # ==============================================================================
 elif st.session_state.fase_navigazione == 3:
     
-    # TRUCCO CSS/JS: Forza il browser (specialmente mobile) a scrollare in cima all'header
+    # FIX AUTOMATICO SCROLL: Costringe il browser a rimettersi in cima all'header (0,0) annullando il salto verso il chatbot
     st.components.v1.html(
-        "<script>window.parent.document.querySelector('.main').scrollTo(0,0);</script>",
-        height=0,
-        width=0
+        """
+        <script>
+            setTimeout(function() {
+                window.parent.document.querySelector('.main').scrollTo({top: 0, behavior: 'auto'});
+            }, 50);
+        </script>
+        """,
+        height=0, width=0
     )
     
     # --- CONFIGURAZIONE BARRA LATERALE ---
@@ -144,7 +149,7 @@ elif st.session_state.fase_navigazione == 3:
     df_regione = df[df['region'] == regione_selezionata]
     
     livello_analisi = st.sidebar.radio(
-        "2. Livello di Analini:", 
+        "2. Livello di Analisi:", 
         ["Intero Comparto Regionale", "Singola Cantina Specifica"],
         index=0 if st.session_state.livello_scelto == "Intero Comparto Regionale" else 1
     )
@@ -172,7 +177,6 @@ elif st.session_state.fase_navigazione == 3:
     st.title("🍷 WineReportAI")
     st.markdown("Platform B2B di Market Intelligence per l'Export Vinicolo Italiano con Intelligenza Artificiale integrata.")
     st.subheader(titolo_dashboard)
-
 
     # --- VISUALIZZAZIONE KPI ---
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
@@ -352,6 +356,13 @@ elif st.session_state.fase_navigazione == 3:
 
             focus_entita = cantina_selezionata if livello_analisi == "Singola Cantina Specifica" else "intero territorio regionale complessivo"
 
+            # Per evitare errori estraiamo i dati correnti calcolati sopra
+            punteggio_medio_val = df_filtrato['points'].mean().round(1) if len(df_filtrato) > 0 else 0
+            prezzo_medio_val = df_filtrato['price'].mean().round(1) if len(df_filtrato) > 0 else 0
+            prezzo_medio_str = f"{prezzo_medio_val}$" if not pd.isna(prezzo_medio_val) else "N/D"
+            sentiment_prevalente = df_filtrato['sentiment_label'].value_counts().index[0] if len(df_filtrato) > 0 else "N/D"
+            parole_chiave_reali = testo_unito[:300] if len(testo_unito) > 0 else "N/D"
+
             system_instruction = f"""
             Sei Bunchy, il Direttore Creativo di un'agenzia di Wine Marketing italiana, esperto nel lanciare vini italiani nel mercato globale.
             Hai totale libertà di analisi e accesso completo ai dati competitivi di performance reali di TUTTE le regioni e cantine italiane.
@@ -360,7 +371,7 @@ elif st.session_state.fase_navigazione == 3:
             - Regione Territoriale Attuale: {regione_selezionata}
             - Focus Specifico Selezionato: {focus_entita}
             - Numero di recensioni analizzate: {len(df_filtrato)}
-            - Punteggio Medio della Critica Internazionale: {punteggio_medio}/100
+            - Punteggio Medio della Critica Internazionale: {punteggio_medio_val}/100
             - Prezzo Medio di Vendita stimato (Export): {prezzo_medio_str}
             - Sentiment Emotivo Prevalente: {sentiment_prevalente}
             - Parole chiave Text Mining: {parole_chiave_reali}
@@ -374,7 +385,7 @@ elif st.session_state.fase_navigazione == 3:
             REGOLE TASSATIVE DI OUTPUT:
             1. Se l'utente ti chiede un COPYWRITING, un testo pubblicitario, un payoff o uno slogan per il mercato americano, devi scriverlo OBBLIGATORIAMENTE IN LINGUA INGLESE (American English). L'introduzione e la spiegazione della strategia di marketing possono essere in italiano, ma i testi pubblicitari finali devono essere in inglese.
             2. All'interno del testo pubblicitario (Copy) DEVI INTEGRARE ALMENO 3 o 4 delle parole chiave sensoriali reali che ti ho fornito sopra (es. crisp, mineral, citrus, ecc.). Non usare parole generiche o inventate.
-            3. Fai leva sui dati reali: cita il punteggio reale ({punteggio_medio}) o il volume di recensioni per dare autorevolezza al brand di fronte ai buyer americani.
+            3. Fai leva sui dati reali: cita il punteggio reale ({punteggio_medio_val}) o il volume di recensioni per dare autorevolezza al brand di fronte dei buyer americani.
             4. COERENZA ENOLOGICA CRITICA: Se stiamo analizzando un vino "Bianco" (White Wine), non inventare mai caratteristiche da vino rosso (es. NO "tannini morbidi", NO "frutti rossi"). Concentrati su acidità, freschezza, note floreali o fruttate bianche in base dei dati.
             5. Evita risposte standard da AI con elenchi puntati chilometrici. Sii directo, strategico e orientato al business B2B.
             6. Se l'utente chiede un'analisi strategica, una proposta di posizionamento o una strategia di marketing, basati sui dati reali per formulare una risposta concreta e attuabile. Non fare mai risposte vaghe o generiche. Sii specifico e pragmatico.
