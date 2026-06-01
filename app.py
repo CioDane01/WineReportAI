@@ -264,11 +264,11 @@ elif st.session_state.fase_navigazione == 3:
 
     st.markdown("---")
 
-        # --- CLOUD WORD SENSORIALE CENTRATA ---
+    # --- CLOUD WORD SENSORIALE CENTRATA ---
     st.markdown("<h3 style='text-align: center;'>☁️ Word Cloud Sensoriale</h3>", unsafe_allow_html=True)
     testo_unito = " ".join(df_filtrato['description_clean'].dropna().astype(str))
     
-    # Inizializziamo una variabile globale da passare poi a Bunchy nel chat_input sotto
+    # Inizializziamo la variabile che conterrà l'ordine e le frequenze perfette per Bunchy
     parole_chiave_per_bunchy = "N/D"
     
     if len(testo_unito.strip()) > 0:
@@ -282,12 +282,24 @@ elif st.session_state.fase_navigazione == 3:
         with col_centro_wc:
             st.pyplot(fig_wc)
             
-        # 🎯 ESTRAZIONE CHIRURGICA: Prendiamo l'ordine esatto dei pesi generati dalla Word Cloud stessa!
-        # Questo garantisce che le parole più grandi nel grafico siano al 100% le prime lette da Bunchy
+        # 🎯 UNIONE DEI DUE MONDI: Prendiamo i termini della Word Cloud e cerchiamo il loro conteggio reale nel testo
         top_termini_wc = list(wordcloud.words_.keys())[:10]
-        parole_chiave_per_bunchy = ", ".join(top_termini_wc)
+        parole_tutte = [w.lower() for w in testo_unito.split()]
+        
+        elenco_conteggi = []
+        for termine in top_termini_wc:
+            # Se è una parola composta (es. "stone fruit"), contiamo quante volte compare la stringa intera
+            if " " in termine:
+                conteggio = testo_unito.lower().count(termine)
+            else:
+                conteggio = parole_tutte.count(termine)
+            elenco_conteggi.append(f"{termine} ({conteggio} volte)")
+            
+        # Stringa finale per il bot: "offer (180 volte), white (155 volte)..."
+        parole_chiave_per_bunchy = ", ".join(elenco_conteggi)
     else:
         st.info("Testo insufficiente per estrarre parole chiave.")
+
 
 
     # --- 📋 REGISTRO ANALITICO MODIFICATO ---
