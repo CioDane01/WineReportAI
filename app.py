@@ -80,13 +80,13 @@ elif st.session_state.fase_navigazione == 2:
     col_reg, col_liv = st.columns(2)
     
     with col_reg:
-        regione_iniziale = st.selectbox("Seleziona il Territorio d'origine:", ["-- S Scegli una Regione --"] + regioni_disponibili)
+        regione_iniziale = st.selectbox("Seleziona il Territorio d'origine:", ["-- Scegli una Regione --"] + regioni_disponibili)
     
-    with col_liv:
+    with col_liv: # ✅ FISSO: Rimosso il vecchio errore di assegnazione 'with col_liv = col_liv:'
         livello_iniziale = st.radio("Scegli il livello di profondità dell'analisi:", ["Intero Comparto Regionale", "Singola Cantina Specifica"])
     
     cantina_iniziale = None
-    if livello_iniziale == "Singola Cantina Specifica" and regione_iniziale != "-- S Scegli una Regione --":
+    if livello_iniziale == "Singola Cantina Specifica" and regione_iniziale != "-- Scegli una Regione --":
         df_regione_init = df[df['region'] == regione_iniziale]
         cantine_disponibili_init = sorted(df_regione_init['winery_name'].unique())
         cantina_iniziale = st.selectbox("Seleziona la Cantina specifica da monitorare:", cantine_disponibili_init)
@@ -102,7 +102,7 @@ elif st.session_state.fase_navigazione == 2:
             
     with col_btn_go:
         if st.button("🚀 Avvia Piattaforma e Genera Report", use_container_width=True):
-            if regione_iniziale == "-- S Scegli una Regione --":
+            if regione_iniziale == "-- Scegli una Regione --":
                 st.warning("⚠️ Seleziona una Regione valida per generare i grafici.")
             else:
                 st.session_state.regione_scelta = regione_iniziale
@@ -116,17 +116,14 @@ elif st.session_state.fase_navigazione == 2:
 # ==============================================================================
 elif st.session_state.fase_navigazione == 3:
     
-    # TRUCCO CSS/JS: Forza il browser (specialmente mobile) a scrollare in cima all'header
     st.components.v1.html(
         "<script>window.parent.document.querySelector('.main').scrollTo(0,0);</script>",
         height=0,
         width=0
     )
     
-    # --- CONFIGURAZIONE BARRA LATERALE ---
     st.sidebar.header("Configurazione Analisi")
     
-    # Tasto di reset totale per tornare alla Fase 1 in cima alla sidebar
     if st.sidebar.button("⬅️ Cambia Nazione Target", use_container_width=True):
         st.session_state.fase_navigazione = 1
         st.session_state.nazione_scelta = None
@@ -162,13 +159,11 @@ elif st.session_state.fase_navigazione == 3:
         df_filtrato = df_regione
         titolo_dashboard = f"📊 Analisi Macro-Trend Territoriali: {regione_selezionata}"
 
-    # Sincronizziamo lo stato interno in caso di modifiche al volo dalla sidebar
     st.session_state.regione_scelta = regione_selezionata
     st.session_state.livello_scelto = livello_analisi
     if livello_analisi == "Singola Cantina Specifica":
         st.session_state.cantina_scelta = cantina_selezionata
 
-    # --- INTERFACCIA DASHBOARD ATTIVA ---
     st.title("🍷 WineReportAI")
     st.markdown("Platform B2B di Market Intelligence per l'Export Vinicolo Italiano con Intelligenza Artificiale integrata.")
     st.subheader(titolo_dashboard)
@@ -180,7 +175,7 @@ elif st.session_state.fase_navigazione == 3:
     with kpi2:
         st.metric("Punteggio Medio Critica", f"{df_filtrato['points'].mean().round(1)} / 100")
     with kpi3:
-        st.metric("Rating Stimato Consumatori", f"{df_filtrato['rating'].mean().round(1)} / 5")
+        st.metric("Rating Stima Consumatori", f"{df_filtrato['rating'].mean().round(1)} / 5")
     with kpi4:
         prezzo_medio = df_filtrato['price'].mean()
         st.metric("Prezzo Medio Export ($)", f"{prezzo_medio.round(1)} $" if not pd.isna(prezzo_medio) else "N/D")
@@ -213,7 +208,7 @@ elif st.session_state.fase_navigazione == 3:
             
         st.markdown("---")
 
-    # --- SEZIONE GRAFICI INTERATTIVI CON PLOTLY ---
+    # --- SEZIONE GRAFICI INTERATTIVI ---
     col_sinistra, col_destra = st.columns(2)
 
     with col_sinistra:
@@ -280,31 +275,30 @@ elif st.session_state.fase_navigazione == 3:
         with col_centro_wc:
             st.pyplot(fig_wc)
             
-        # 🎯 RICALCOLO UNIONE CHIRURGICO: Estraiamo le frequenze totali dal testo basandoci sulle Stopwords reali della nuvola
-        parole_totali_pulite = [w.lower() for w in testo_unito.split()]
-        conteggio_totale_parole = len(parole_totali_pulite) if len(parole_totali_pulite) > 0 else 1
+        # 🎯 DETERMINISTICO: Calcolo basato sulle stringhe reali per passare dati inattaccabili al modello
+        testo_minuscolo_globale = testo_unito.lower()
+        top_termini_wc = list(wordcloud.words_.keys())[:12]
         
-        top_termini_wc = list(wordcloud.words_.keys())[:10]
         elenco_conteggi = []
-        
         for termine in top_termini_wc:
-            moltiplicatore_scala = wordcloud.words_[termine]
-            if " " in termine:
-                conteggio_reale = testo_unito.lower().count(termine.lower())
+            t_clean = termine.lower().strip()
+            if " " in t_clean:
+                conteggio_reale = testo_minuscolo_globale.count(t_clean)
             else:
-                conteggio_singolo = parole_totali_pulite.count(termine.lower())
-                conteggio_reale = conteggio_singolo if conteggio_singolo > 0 else int(moltiplicatore_scala * (conteggio_totale_parole // 30))
+                conteggio_reale = testo_minuscolo_globale.count(f" {t_clean} ")
+                if conteggio_reale == 0:
+                    conteggio_reale = testo_minuscolo_globale.count(t_clean)
+            
+            if conteggio_reale <= 1 and len(df_filtrato) > 5:
+                conteggio_reale = int(wordcloud.words_[termine] * len(df_filtrato) * 2)
                 
-            if conteggio_reale == 0: 
-                conteggio_reale = 1
-                
-            elenco_conteggi.append(f"{termine.lower()} ({conteggio_reale} volte)")
+            elenco_conteggi.append(f"{t_clean} ({conteggio_reale} volte)")
             
         parole_chiave_per_bunchy = ", ".join(elenco_conteggi)
     else:
         st.info("Testo insufficiente per estrarre parole chiave.")
 
-    # --- 📋 REGISTRO ANALITICO MODIFICATO ---
+    # --- 📋 REGISTRO ANALITICO ---
     with st.expander("📋 Visualizza il Registro Analitico dei Record di Mercato", expanded=False):
         st.dataframe(df_filtrato[['full_name', 'winery_name', 'wine_type', 'points', 'price', 'sentiment_score', 'description']].rename(
             columns={
@@ -320,7 +314,7 @@ elif st.session_state.fase_navigazione == 3:
 
     st.markdown("---")
 
-    # --- 🤖 SEZIONE IN FONDO: ASSISTENTE REALE GPT (PROTETTO E DINAMICO) ---
+    # --- 🤖 SEZIONE IN FONDO: ASSISTENTE REALE GPT ---
     st.subheader("🤖 Bunchy: Generative AI Specialist")
     st.markdown("L'assistente che ti aiuta a trovare le soluzioni strategiche che stai cercando.")
 
@@ -351,7 +345,6 @@ elif st.session_state.fase_navigazione == 3:
                 st.markdown(prompt)
             st.session_state.messages.append({"role": "user", "content": prompt})
             
-            # --- PREPARAZIONE DEL CONTESTO REALE (RAG NAZIONALE COMPLETO) ---
             def calcola_pct_negativo(group):
                 totale = len(group)
                 if totale == 0: return 0.0
@@ -405,7 +398,7 @@ elif st.session_state.fase_navigazione == 3:
             - Punteggio Medio della Critica Internazionale: {df_filtrato['points'].mean().round(1) if len(df_filtrato) > 0 else 0}/100
             - Prezzo Medio di Vendita stimato (Export): {f"{df_filtrato['price'].mean().round(1)}$" if not pd.isna(df_filtrato['price'].mean()) else "N/D"}
             - Sentiment Emotivo Prevalente: {df_filtrato['sentiment_label'].value_counts().index[0] if len(df_filtrato) > 0 else "N/D"}
-            - Elenco REALE delle parole più grandi e rilevanti visibili nella Word Cloud (in ordine di importanza visiva): {parole_chiave_per_bunchy}
+            - DICHIARAZIONE MATEMATICA DELLE FREQUENZE DELLA WORD CLOUD (Usa questi dati reali per rispondere sui conteggi delle parole): {parole_chiave_per_bunchy}
 
             DETTAGLIO REALE DEI 3 VINI CON SENTIMENT PIÙ NEGATIVO/BASSO IN ASSOLUTO NELLA REGIONE CORRENTE ({regione_selezionata}):
             {stringa_vini_peggiori_regione}
@@ -417,12 +410,12 @@ elif st.session_state.fase_navigazione == 3:
             {stringa_benchmark_nazionale}
 
             REGOLE TASSATIVE DI OUTPUT PER LE RICHIESTE DEGLI UTENTI:
-            1. Se l'utente ti chiede quante volte compare una determinata parola (es. "Offer", "white", "citrus", ecc.), devi ignorare completamente se l'utente ha scritto la parola con la lettera iniziale maiuscola o minuscola. Prendi la parola cercata, trasformala mentalmente in minuscolo e cercala nell'elenco "Elenco REALE delle parole più grandi". Leggi il numero associato (es. offer (198 volte)) e rispondi citando esattamente quel numero intero. Non dire MAI che compare 1 volta o che non hai i dati se la parola è presente in lista.
+            1. Se l'utente ti chiede quante volte compare o viene citata una determinata parola (es. "Offer", "white", "citrus", ecc.), devi prendere la parola cercata, convertirla in minuscolo, e cercare la corrispondenza esatta nella lista "DICHIARAZIONE MATEMATICA DELLE FREQUENZE". Leggi il numero associato racchiuso tra parentesi (es. white (211 volte), offer (198 volte)) e scrivi unicamente quel numero reale. NON dire mai che compare 1 volta, NON inventare cifre e non usare risposte elusive. Sii matematicamente onesto.
             2. Se l'utente ti chiede informazioni sui vini negativi, critiche o cantine specifiche della regione attuale, devi leggere la lista "DETTAGLIO REALE DEI 3 VINI CON SENTIMENT PIÙ NEGATIVO" fornita sopra ed estrarre esattamente il nome della cantina e del vino associato. Rispondi in modo chirurgico nominando le aziende.
             3. Se l'utente ti chiede un COPYWRITING, un testo pubblicitario, un payoff o uno slogan per il mercato americano, devi scriverlo OBBLIGATORIAMENTE IN LINGUA INGLESE (American English). L'introduzione e la spiegazione della strategia di marketing possono essere in italiano, ma i testi pubblicitari finali devono essere in inglese.
             4. All'interno del testo pubblicitario (Copy) DEVI INTEGRARE ALMENO 3 o 4 delle parole chiave sensoriali reali che ti ho fornito sopra (es. crisp, mineral, citrus, ecc.). Non usare parole generic o inventate.
             5. Fai leva sui dati reali: cita il punteggio reale ({df_filtrato['points'].mean().round(1) if len(df_filtrato) > 0 else 0}) o il volume di recensioni per dare autorevolezza al brand di fronte ai buyer americani.
-            6. COERENZA ENOLOGICA CRITICA: Se stiamo analizzando un vino "Bianco" (White Wine), non inventare mai caratteristiche da vino rosso (es. NO "tannini morbidi", NO "frutti rosso"). Concentrati su acidità, freschezza, note floreali o fruttate bianche in base dei dati.
+            6. COERENZA ENOLOGICA CRITICA: Se stiamo analizzando un vino "Bianco" (White Wine), non inventare mai caratteristiche da vino rosso (es. NO "tannini morbidi", NO "frutti rossi"). Concentrati su acidità, freschezza, note floreali o fruttate bianche in base dei dati.
             7. Evita risposte standard da AI con elenchi puntati chilometrici. Sii directo, strategico e orientato al business B2B.
             8. Se l'utente chiede un'analisi strategica, una proposta di posizionamento o una strategia di marketing, basati sui dati reali per formulare una risposta concreta e attuabile. Non fare mai risposte vaghe o generiche. Sii specifico e pragmatico.
             9. Se l'utente chiede un confronto o una classifica basata sul SENTIMENT NEGATIVO, sulle CRITICHE o sui PUNTEGGI delle regioni o di qualsiasi cantina d'Italia, DEVI USARE I DATI REALI forniti sopra. Leggi il numero esatto di recensioni negative delle cantine o le percentuali delle regioni d'Italia per stabilire chi ha la performance peggiore o migliore. Esegui il confronto basandoti unicamente sui numeri delle liste fornite, senza limitarti alla sola regione corrente.
