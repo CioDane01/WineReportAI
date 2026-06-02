@@ -11,13 +11,12 @@ st.set_page_config(page_title="WineReportAI - B2B Market Intelligence", layout="
 @st.cache_data
 def load_data():
     df_load = pd.read_csv("dataset_vini_intelligence.csv")
-    # Ricalcolo della scala enologica reale: points da 80 a 100 mappati su 1-5 stelle
-    df_load['rating'] = ((df_load['points'] - 80) / 20 * 5).round(1)
-    # Evitiamo valori inferiori a 1 se per caso un vino ha meno di 80 punti nel dataset
+    # ✅ Scala definitiva: da 94 punti in su scattano le 5 stelle piene
+    df_load['rating'] = ((df_load['points'] - 75) / 19 * 5).round(1)
+    # Blocchiamo il tetto massimo a 5.0 e il minimo a 1.0 per evitare sforamenti
     df_load['rating'] = df_load['rating'].clip(lower=1.0, upper=5.0)
     return df_load
 
-df = load_data()
 
 # --- REPERIMENTO CHIAVE API AUTOMATICO DA SECRETS ---
 try:
@@ -257,6 +256,58 @@ elif st.session_state.fase_navigazione == 3:
             with st.chat_message("user", avatar="👤"):
                 st.markdown(prompt)
             st.session_state.messages.append({"role": "user", "content": prompt})
+            
+                        # --- BLOCCO DI CONTROLLO TOKEN PRE-CHIAMATA API ---
+            try:
+                # Creiamo la struttura dei messaggi che invieremmo a OpenAI
+                api_messages = [{"role": "system", "content": system_instruction}]
+                for msg in st.session_state.messages[-5:]:
+                    api_messages.append({"role": msg["role"], "content": msg["content"]})
+                
+                # Calcolo approssimativo dei token (1 parola corrisponde mediamente a circa 1.3 token)
+                testo_totale_da_inviare = "".join([m["content"] for m in api_messages])
+                token_stimati = int(len(testo_totale_da_inviare.split()) * 1.3)
+                
+                # Impostiamo una soglia di sicurezza rigida (es. 90.000 token, ben sotto il limite di 128k)
+                if token_stimati > 90000:
+                    risposta_cortesia = (
+                        "🤖 **Nota di Bunchy:** La selezione corrente contiene una mole di record analitici "
+                        "troppo densa per l'elaborazione in un singolo messaggio di chat. \n\n"
+                        "💡 **Cosa puoi fare adesso:** Per confrontare aree geografiche diverse o estrarre dati "
+                        "macro-nazionali, ti suggerisco di restringere il campo utilizzando i filtri della barra "
+                        "laterale (selezionando ad esempio una singola cantina specifica invece dell'intero comparto regionale). "
+                        "In questo modo ridurrai il rumore di fondo dei dati e potrò fornirti un'analisi di mercato mirata!"
+                    )
+                    
+                    with st.chat_message("assistant", avatar="🤖"):
+                        st.markdown(risposta_cortesia)
+                    st.session_state.messages.append({"role": "assistant", "content": risposta_cortesia})
+                
+                else:
+                    # Se siamo dentro i limiti di token, procediamo con la normale chiamata API
+                    client = OpenAI(api_key=openai_key)
+                    with st.spinner("Bunchy sta interrogando la matrice dati..."):
+                        response = client.chat.completions.create(
+                            model="gpt-4o-mini",
+                            messages=api_messages,
+                            temperature=0.1
+                        )
+                        
+                    risposta_llm = response.choices[0].message.content
+                    with st.chat_message("assistant", avatar="🤖"):
+                        st.markdown(risposta_llm)
+                    st.session_state.messages.append({"role": "assistant", "content": risposta_llm})
+                    
+            except Exception as e:
+                # Gestione dell'errore generico per non mostrare mai il blocco rosso di crash
+                messaggio_errore_pulito = (
+                    "🤖 **Bunchy:** Si è verificato un sovraccarico durante l'interrogazione della matrice dati. "
+                    "Prova a selezionare un'area territoriale più circoscritta per ottimizzare l'analisi strategica."
+                )
+                with st.chat_message("assistant", avatar="🤖"):
+                    st.markdown(messaggio_errore_pulito)
+                st.session_state.messages.append({"role": "assistant", "content": messaggio_errore_pulito})
+
             
             # 🚀 GENERAZIONE DIZIONARIO COMPATTO DIRETTAMENTE DAL DATAFRAME FILTRATO
             df_contesto = df_filtrato[['full_name', 'winery_name', 'price', 'points', 'sentiment_score', 'sentiment_label']].copy()
