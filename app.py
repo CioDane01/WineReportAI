@@ -7,28 +7,17 @@ from openai import OpenAI
 
 st.set_page_config(page_title="WineReportAI - B2B Market Intelligence", layout="wide")
 
-
-# QUESTO QUI È PROVVISORIO PER I CALCOLI
-
+# ✅ FUNZIONE DI CARICAMENTO DATI DEFINITIVA CON DIALLINEAMENTO ENOLOGICO CORRETTO
 @st.cache_data
 def load_data():
     df_load = pd.read_csv("dataset_vini_intelligence.csv")
-    # ✅ Ricalcolo della scala enologica reale: points da 80 a 100 mappati su 1-5 stelle
+    # Ricalcolo della scala enologica reale: points da 80 a 100 mappati su 1-5 stelle
     df_load['rating'] = ((df_load['points'] - 80) / 20 * 5).round(1)
-    # Evitiamo valori negativi se per caso un vino ha meno di 80 punti
+    # Evitiamo valori inferiori a 1 se per caso un vino ha meno di 80 punti nel dataset
     df_load['rating'] = df_load['rating'].clip(lower=1.0, upper=5.0)
     return df_load
 
-
-
-# poi rimettere questo:
-#@st.cache_data
-#def load_data():
-    #return pd.read_csv("dataset_vini_intelligence.csv")
-
-#df = load_data()
-
-
+df = load_data()
 
 # --- REPERIMENTO CHIAVE API AUTOMATICO DA SECRETS ---
 try:
@@ -66,12 +55,12 @@ if st.session_state.fase_navigazione == 1:
     
     nazione_iniziale = st.selectbox(
         "Seleziona la Nazione Target:", 
-        ["-- Scegli una Nazione --", "Stati Uniti 🇺🇸", "Regno Unito 🇬🇧", "Germania 🇩🇪", "Giappone 🇯🇵"]
+        ["-- S Scegli una Nazione --", "Stati Uniti 🇺🇸", "Regno Unito 🇬🇧", "Germania 🇩🇪", "Giappone 🇯🇵"]
     )
     
     st.markdown("##")
     if st.button("Procedi ➡️", use_container_width=True):
-        if nazione_iniziale == "-- Scegli una Nazione --":
+        if nazione_iniziale == "-- S Scegli una Nazione --":
             st.warning("⚠️ Per procedere devi obbligatoriamente selezionare una nazione.")
         elif nazione_iniziale != "Stati Uniti 🇺🇸":
             st.info(f"💼 **Modulo {nazione_iniziale} in fase di Roll-out.** I dati sono in fase di elaborazione strategica. Seleziona 'Stati Uniti 🇺🇸' per testare l'MVP della piattaforma.")
@@ -103,7 +92,7 @@ elif st.session_state.fase_navigazione == 2:
         livello_iniziale = st.radio("Scegli il livello di profondità dell'analisi:", ["Intero Comparto Regionale", "Singola Cantina Specifica"])
     
     cantina_iniziale = None
-    if livello_iniziale == "Singola Cantina Specifica" and regione_iniziale != "-- Scegli una Regione --":
+    if livello_iniziale == "Singola Cantina Specifica" and regione_iniziale != "-- S Scegli una Regione --":
         df_regione_init = df[df['region'] == regione_iniziale]
         cantine_disponibili_init = sorted(df_regione_init['winery_name'].unique())
         cantina_iniziale = st.selectbox("Seleziona la Cantina specifica da monitorare:", cantine_disponibili_init)
@@ -119,7 +108,7 @@ elif st.session_state.fase_navigazione == 2:
             
     with col_btn_go:
         if st.button("🚀 Avvia Piattaforma e Genera Report", use_container_width=True):
-            if regione_iniziale == "-- Scegli una Regione --":
+            if regione_iniziale == "-- S Scegli una Regione --":
                 st.warning("⚠️ Seleziona una Regione valida per generare i grafici.")
             else:
                 st.session_state.regione_scelta = regione_iniziale
@@ -242,7 +231,7 @@ elif st.session_state.fase_navigazione == 3:
 
     st.markdown("---")
 
-    # --- 📋 SEZIONE GPT COMPLETAMENTE AUTOMATIZZATA (Copy Aggiornato) ---
+    # --- 🤖 SEZIONE GPT COMPLETAMENTE AUTOMATIZZATA ---
     st.subheader("🤖 Bunchy: Generative AI Specialist")
     
     if "last_selected_region" not in st.session_state or st.session_state.last_selected_region != regione_selezionata:
@@ -256,7 +245,6 @@ elif st.session_state.fase_navigazione == 3:
     if not openai_key:
         st.error("⚠️ Chiave 'OPENAI_API_KEY' missing nei secrets di Streamlit.")
     else:
-        # Modifica copy 1: Ripristinato il messaggio di benvenuto originale
         if len(st.session_state.messages) == 0:
             st.session_state.messages.append({"role": "assistant", "content": "Ciao! Sono Bunchy. Come posso aiutarti?"})
 
@@ -265,7 +253,6 @@ elif st.session_state.fase_navigazione == 3:
             with st.chat_message(message["role"], avatar=avatar_icon):
                 st.markdown(message["content"])
 
-        # Modifica copy 2: Aggiornato il testo segnaposto del campo di input
         if prompt := st.chat_input("Fai una domanda a Bunchy"):
             with st.chat_message("user", avatar="👤"):
                 st.markdown(prompt)
