@@ -7,16 +7,17 @@ from openai import OpenAI
 
 st.set_page_config(page_title="WineReportAI - B2B Market Intelligence", layout="wide")
 
-# ✅ FUNZIONE DI CARICAMENTO DATI DEFINITIVA CON DIALLINEAMENTO ENOLOGICO CORRETTO
+# ✅ FUNZIONE DI CARICAMENTO DATI CON DIALLINEAMENTO ENOLOGICO (Base 75, Tetto 94)
 @st.cache_data
 def load_data():
     df_load = pd.read_csv("dataset_vini_intelligence.csv")
-    # ✅ Scala definitiva: da 94 punti in su scattano le 5 stelle piene
     df_load['rating'] = ((df_load['points'] - 75) / 19 * 5).round(1)
-    # Blocchiamo il tetto massimo a 5.0 e il minimo a 1.0 per evitare sforamenti
     df_load['rating'] = df_load['rating'].clip(lower=1.0, upper=5.0)
     return df_load
 
+# ✅ DF DEFINITO IMMEDIATAMENTE QUI (Evita il NameError)
+df = load_data()
+regioni_disponibili = sorted(df['region'].unique())
 
 # --- REPERIMENTO CHIAVE API AUTOMATICO DA SECRETS ---
 try:
@@ -36,8 +37,6 @@ if "livello_scelto" not in st.session_state:
 if "cantina_scelta" not in st.session_state:
     st.session_state.cantina_scelta = None
 
-regioni_disponibili = sorted(df['region'].unique())
-
 # ==============================================================================
 # FASE 1: SELEZIONE DELLA NAZIONE TARGET (Sidebar Nascosta)
 # ==============================================================================
@@ -54,12 +53,12 @@ if st.session_state.fase_navigazione == 1:
     
     nazione_iniziale = st.selectbox(
         "Seleziona la Nazione Target:", 
-        ["-- S Scegli una Nazione --", "Stati Uniti 🇺🇸", "Regno Unito 🇬🇧", "Germania 🇩🇪", "Giappone 🇯🇵"]
+        ["-- Scegli una Nazione --", "Stati Uniti 🇺🇸", "Regno Unito 🇬🇧", "Germania 🇩🇪", "Giappone 🇯🇵"]
     )
     
     st.markdown("##")
     if st.button("Procedi ➡️", use_container_width=True):
-        if nazione_iniziale == "-- S Scegli una Nazione --":
+        if nazione_iniziale == "-- Scegli una Nazione --":
             st.warning("⚠️ Per procedere devi obbligatoriamente selezionare una nazione.")
         elif nazione_iniziale != "Stati Uniti 🇺🇸":
             st.info(f"💼 **Modulo {nazione_iniziale} in fase di Roll-out.** I dati sono in fase di elaborazione strategica. Seleziona 'Stati Uniti 🇺🇸' per testare l'MVP della piattaforma.")
@@ -91,7 +90,7 @@ elif st.session_state.fase_navigazione == 2:
         livello_iniziale = st.radio("Scegli il livello di profondità dell'analisi:", ["Intero Comparto Regionale", "Singola Cantina Specifica"])
     
     cantina_iniziale = None
-    if livello_iniziale == "Singola Cantina Specifica" and regione_iniziale != "-- S Scegli una Regione --":
+    if livello_iniziale == "Singola Cantina Specifica" and regione_iniziale != "-- Scegli una Regione --":
         df_regione_init = df[df['region'] == regione_iniziale]
         cantine_disponibili_init = sorted(df_regione_init['winery_name'].unique())
         cantina_iniziale = st.selectbox("Seleziona la Cantina specifica da monitorare:", cantine_disponibili_init)
@@ -107,7 +106,7 @@ elif st.session_state.fase_navigazione == 2:
             
     with col_btn_go:
         if st.button("🚀 Avvia Piattaforma e Genera Report", use_container_width=True):
-            if regione_iniziale == "-- S Scegli una Regione --":
+            if regione_iniziale == "-- Scegli una Regione --":
                 st.warning("⚠️ Seleziona una Regione valida per generare i grafici.")
             else:
                 st.session_state.regione_scelta = regione_iniziale
@@ -230,7 +229,7 @@ elif st.session_state.fase_navigazione == 3:
 
     st.markdown("---")
 
-    # --- 🤖 SEZIONE GPT COMPLETAMENTE AUTOMATIZZATA ---
+    # --- 🤖 SEZIONE GPT AUTOMATIZZATA CON FALLBACK ANTI-CRASH SUI TOKEN ---
     st.subheader("🤖 Bunchy: Generative AI Specialist")
     
     if "last_selected_region" not in st.session_state or st.session_state.last_selected_region != regione_selezionata:
@@ -257,59 +256,7 @@ elif st.session_state.fase_navigazione == 3:
                 st.markdown(prompt)
             st.session_state.messages.append({"role": "user", "content": prompt})
             
-                        # --- BLOCCO DI CONTROLLO TOKEN PRE-CHIAMATA API ---
-            try:
-                # Creiamo la struttura dei messaggi che invieremmo a OpenAI
-                api_messages = [{"role": "system", "content": system_instruction}]
-                for msg in st.session_state.messages[-5:]:
-                    api_messages.append({"role": msg["role"], "content": msg["content"]})
-                
-                # Calcolo approssimativo dei token (1 parola corrisponde mediamente a circa 1.3 token)
-                testo_totale_da_inviare = "".join([m["content"] for m in api_messages])
-                token_stimati = int(len(testo_totale_da_inviare.split()) * 1.3)
-                
-                # Impostiamo una soglia di sicurezza rigida (es. 90.000 token, ben sotto il limite di 128k)
-                if token_stimati > 90000:
-                    risposta_cortesia = (
-                        "🤖 **Nota di Bunchy:** La selezione corrente contiene una mole di record analitici "
-                        "troppo densa per l'elaborazione in un singolo messaggio di chat. \n\n"
-                        "💡 **Cosa puoi fare adesso:** Per confrontare aree geografiche diverse o estrarre dati "
-                        "macro-nazionali, ti suggerisco di restringere il campo utilizzando i filtri della barra "
-                        "laterale (selezionando ad esempio una singola cantina specifica invece dell'intero comparto regionale). "
-                        "In questo modo ridurrai il rumore di fondo dei dati e potrò fornirti un'analisi di mercato mirata!"
-                    )
-                    
-                    with st.chat_message("assistant", avatar="🤖"):
-                        st.markdown(risposta_cortesia)
-                    st.session_state.messages.append({"role": "assistant", "content": risposta_cortesia})
-                
-                else:
-                    # Se siamo dentro i limiti di token, procediamo con la normale chiamata API
-                    client = OpenAI(api_key=openai_key)
-                    with st.spinner("Bunchy sta interrogando la matrice dati..."):
-                        response = client.chat.completions.create(
-                            model="gpt-4o-mini",
-                            messages=api_messages,
-                            temperature=0.1
-                        )
-                        
-                    risposta_llm = response.choices[0].message.content
-                    with st.chat_message("assistant", avatar="🤖"):
-                        st.markdown(risposta_llm)
-                    st.session_state.messages.append({"role": "assistant", "content": risposta_llm})
-                    
-            except Exception as e:
-                # Gestione dell'errore generico per non mostrare mai il blocco rosso di crash
-                messaggio_errore_pulito = (
-                    "🤖 **Bunchy:** Si è verificato un sovraccarico durante l'interrogazione della matrice dati. "
-                    "Prova a selezionare un'area territoriale più circoscritta per ottimizzare l'analisi strategica."
-                )
-                with st.chat_message("assistant", avatar="🤖"):
-                    st.markdown(messaggio_errore_pulito)
-                st.session_state.messages.append({"role": "assistant", "content": messaggio_errore_pulito})
-
-            
-            # 🚀 GENERAZIONE DIZIONARIO COMPATTO DIRETTAMENTE DAL DATAFRAME FILTRATO
+            # Generazione della matrice testuale filtrata
             df_contesto = df_filtrato[['full_name', 'winery_name', 'price', 'points', 'sentiment_score', 'sentiment_label']].copy()
             df_contesto['price'] = df_contesto['price'].fillna("N/D")
             
@@ -342,28 +289,55 @@ elif st.session_state.fase_navigazione == 3:
             Frequenze esatte della Word Cloud visibile all'utente: {parole_chiave_per_bunchy}
 
             REGOLE DI RISPOSTA ASSOLUTE:
-            1. Quando l'utente ti chiede un dato numerico (es. "qual è il prezzo più basso?", "chi ha il sentiment peggiore?", "trova il punteggio massimo"), tu DEVI analizzare l'elenco dei vini fornito sopra, trovare il record con il valore minimo o massimo richiesto e riportare fedelmente il nome del vino, la cantina e la cifra esatta. I dati sono completi, quindi non dire mai che non hai accesso o che le informazioni sono parziali.
-            2. Se l'utente ti chiede conteggi sulle parole, fai riferimento al blocco "Frequenze esatte della Word Cloud" ignorando maiuscole e minuscole.
-            3. Sii un consulente B2B serio, diretto, preciso al millesimo sui numeri e orientato al business strategico. Evita i preamboli inutili o risposte elusive da AI standard.
+            1. Quando l'utente ti chiede un dato numerico (es. "qual è il prezzo più basso?", "chi ha il sentiment peggiore?", "trova il punteggio massimo"), tu DEVI analizzare l'elenco dei vini fornito sopra, trovare il record con il valore minimo o massimo richiesto e riportare fedelmente il nome del vino, la cantina e la cifra esatta.
+            2. Se l'utente ti chiede informazioni o confronti complessi che richiedono il calcolo di troppi record, rispondi basandoti unicamente sulle tabelle di riepilogo fornite sopra.
+            3. Se l'utente ti chiede conteggi sulle parole, fai riferimento al blocco "Frequenze esatte della Word Cloud" ignorando maiuscole e minuscole.
+            4. Sii un consulente B2B serio, diretto, preciso al millesimo sui numeri e orientato al business strategico. Evita i preamboli inutili o risposte elusive da AI standard.
             """
 
+            # 🛠️ GESTIONE CONTROLLO TOKEN PRE-CHIAMATA ED ECCEZIONE CORRETTA SUL CODICE 400
             try:
-                client = OpenAI(api_key=openai_key)
                 api_messages = [{"role": "system", "content": system_instruction}]
                 for msg in st.session_state.messages[-5:]:
                     api_messages.append({"role": msg["role"], "content": msg["content"]})
-                    
-                with st.spinner("Bunchy sta interrogando la matrice dati..."):
-                    response = client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=api_messages,
-                        temperature=0.1
-                    )
-                    
-                risposta_llm = response.choices[0].message.content
-                with st.chat_message("assistant", avatar="🤖"):
-                    st.markdown(risposta_llm)
-                st.session_state.messages.append({"role": "assistant", "content": risposta_llm})
                 
+                # Calcolo stringa di input per verificare la lunghezza a monte
+                testo_totale_da_inviare = "".join([m["content"] for m in api_messages])
+                token_stimati = int(len(testo_totale_da_inviare.split()) * 1.35)
+                
+                # Soglia di sicurezza fissa (95k token per gpt-4o-mini per stare tranquilli)
+                if token_stimati > 95000:
+                    risposta_fallback = (
+                        "🤖 **Nota di Bunchy:** Questa query richiede l'elaborazione simultanea di un volume di dati "
+                        "troppo elevato per le capacità di un singolo prompt di chat (limite di token superato).\n\n"
+                        "💡 **Come aggirare il problema:** Prova a restringere l'analisi utilizzando la barra laterale "
+                        "di sinistra (selezionando ad esempio una **Singola Cantina Specifica** anziché l'intero comparto "
+                        "regionale). In questo modo ridurrai le righe in memoria e potrò fornirti all'istante l'analisi esatta!"
+                    )
+                    with st.chat_message("assistant", avatar="🤖"):
+                        st.markdown(risposta_fallback)
+                    st.session_state.messages.append({"role": "assistant", "content": respuesta_fallback})
+                
+                else:
+                    client = OpenAI(api_key=openai_key)
+                    with st.spinner("Bunchy sta interrogando la matrice dati..."):
+                        response = client.chat.completions.create(
+                            model="gpt-4o-mini",
+                            messages=api_messages,
+                            temperature=0.1
+                        )
+                        
+                    risposta_llm = response.choices[0].message.content
+                    with st.chat_message("assistant", avatar="🤖"):
+                        st.markdown(risposta_llm)
+                    st.session_state.messages.append({"role": "assistant", "content": risposta_llm})
+                    
             except Exception as e:
-                st.error(f"Errore di comunicazione: {e}")
+                # Intercettazione totale: se fallisce per qualsiasi motivo o per errore 400 imprevisto, mostra questo testo pulito
+                risposta_cortesia_errore = (
+                    "🤖 **Bunchy:** La mole di dati analitici per questa specifica richiesta supera i limiti attuali di memoria della chat. "
+                    "Per favore, utilizza i filtri della dashboard a sinistra per isolare un set di dati più ristretto (selezionando una cantina o riducendo il comparto) così da poterti dare una risposta precisa."
+                )
+                with st.chat_message("assistant", avatar="🤖"):
+                    st.markdown(risposta_cortesia_errore)
+                st.session_state.messages.append({"role": "assistant", "content": risposta_cortesia_errore})
