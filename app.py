@@ -7,11 +7,28 @@ from openai import OpenAI
 
 st.set_page_config(page_title="WineReportAI - B2B Market Intelligence", layout="wide")
 
+
+# QUESTO QUI È PROVVISORIO PER I CALCOLI
+
 @st.cache_data
 def load_data():
-    return pd.read_csv("dataset_vini_intelligence.csv")
+    df_load = pd.read_csv("dataset_vini_intelligence.csv")
+    # ✅ Ricalcolo della scala enologica reale: points da 80 a 100 mappati su 1-5 stelle
+    df_load['rating'] = ((df_load['points'] - 80) / 20 * 5).round(1)
+    # Evitiamo valori negativi se per caso un vino ha meno di 80 punti
+    df_load['rating'] = df_load['rating'].clip(lower=1.0, upper=5.0)
+    return df_load
 
-df = load_data()
+
+
+# poi rimettere questo:
+#@st.cache_data
+#def load_data():
+    #return pd.read_csv("dataset_vini_intelligence.csv")
+
+#df = load_data()
+
+
 
 # --- REPERIMENTO CHIAVE API AUTOMATICO DA SECRETS ---
 try:
