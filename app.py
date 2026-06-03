@@ -124,6 +124,16 @@ elif st.session_state.fase_navigazione == 2:
 # ==============================================================================
 elif st.session_state.fase_navigazione == 3:
     
+    # Mappatura per estrarre l'emoji corretta o isolata per la visualizzazione grafica in alto
+    bandiera_mappa = {"Stati Uniti 🇺🇸": "🇺🇸", "Regno Unito 🇬🇧": "🇬🇧", "Germania 🇩🇪": "🇩🇪", "Giappone 🇯🇵": "🇯🇵"}
+    emoji_bandiera = bandiera_mappa.get(st.session_state.nazione_scelta, "🌐")
+    nome_nazione_pulito = st.session_state.nazione_scelta.replace(" 🇺🇸", "").replace(" 🇬🇧", "").replace(" 🇩🇪", "").replace(" 🇯🇵", "")
+
+    # ✅ INSERIMENTO DELLA BANDIERA NELLA BARRA LATERALE IN ALTO (Con scritta sotto)
+    st.sidebar.markdown(f"<h1 style='text-align: center; font-size: 80px; margin-bottom: 0px;'>{emoji_bandiera}</h1>", unsafe_allow_html=True)
+    st.sidebar.markdown(f"<p style='text-align: center; font-weight: bold; font-size: 16px; margin-top: 0px;'>Mercato Target: {nome_nazione_pulito}</p>", unsafe_allow_html=True)
+    st.sidebar.markdown("---")
+
     st.sidebar.header("Configurazione Analisi")
     if st.sidebar.button("⬅️ Cambia Nazione Target", use_container_width=True):
         st.session_state.fase_navigazione = 1
@@ -225,8 +235,7 @@ elif st.session_state.fase_navigazione == 3:
     else:
         st.info("Testo insufficiente per estrarre parole chiave.")
 
-    # --- MODIFICA 1: REGISTRO ANALITICO CON INSERIMENTO DEL NOME DEL CRITICO ---
-    # Se la colonna 'taster_name' non esiste o ha dei vuoti, usiamo un ripiego sicuro per evitare crash
+    # --- REGISTRO ANALITICO CON AUTORE DELLA RECENSIONE ---
     colonne_registro = ['full_name', 'winery_name', 'wine_type', 'points', 'price', 'sentiment_score']
     nomi_colonne_mappate = {
         'full_name': 'Nome Vino / Titolo', 
@@ -254,7 +263,6 @@ elif st.session_state.fase_navigazione == 3:
     # ==============================================================================
     st.subheader("🤖 Bunchy: Generative AI Specialist")
     
-    # --- MODIFICA 2: CONTENITORE DINAMICO DEI CONSIGLI CON FRECCIA/BOTTONE ---
     elenco_consigli = [
         "💡 **Consiglio Analitico (Prezzi e Numeri):** Chiedimi *'Qual è il vino con il prezzo più basso e che punteggio ha?'* oppure *'Quale azienda ha la media voto più alta?'* per scovare i best-buy del mercato.",
         "📊 **Consiglio Strategico (Confronti Competitivi):** Prova a chiedermi *'Fammi un confronto tra le due cantine principali della selezione per capire chi ha il sentiment migliore della critica'*, ti aiuterò a mappare il posizionamento dei competitor.",
@@ -262,7 +270,6 @@ elif st.session_state.fase_navigazione == 3:
         "🎯 **Consiglio Linguistico (Lessico Emozionale):** Chiedimi *'Quali termini descrittivi o sensoriali vengono ripetuti più spesso in questa Word Cloud?'* per estrarre la semantica ideale per i tuoi comunicati stampa di export."
     ]
     
-    # Layout a due colonne per mostrare il consiglio corrente e il bottone di cambio
     col_testo_consiglio, col_bottone_cambio = st.columns([5, 1])
     
     with col_testo_consiglio:
@@ -275,7 +282,6 @@ elif st.session_state.fase_navigazione == 3:
             
     st.markdown("##")
 
-    # --- LOGICA STANDARD DELLA CHAT DI BUNCHY ---
     if "last_selected_region" not in st.session_state or st.session_state.last_selected_region != regione_selezionata:
         st.session_state.messages = []
         st.session_state.last_selected_region = regione_selezionata
@@ -300,7 +306,6 @@ elif st.session_state.fase_navigazione == 3:
                 st.markdown(prompt)
             st.session_state.messages.append({"role": "user", "content": prompt})
             
-            # Generazione della matrice testuale filtrata
             df_contesto = df_filtrato[['full_name', 'winery_name', 'price', 'points', 'sentiment_score', 'sentiment_label']].copy()
             df_contesto['price'] = df_contesto['price'].fillna("N/D")
             
@@ -336,7 +341,7 @@ elif st.session_state.fase_navigazione == 3:
             1. Quando l'utente ti chiede un dato numerico (es. "qual è il prezzo più basso?", "chi ha il sentiment peggiore?", "trova il punteggio massimo"), tu DEVI analizzare l'elenco dei vini fornito sopra, trovare il record con il valore minimo o massimo richiesto e riportare fedelmente il nome del vino, la cantina e la cifra esatta.
             2. Se l'utente ti chiede informazioni o confronti complessi che richiedono il calcolo di troppi record, rispondi basandoti unicamente sulle tabelle di riepilogo fornite sopra.
             3. Se l'utente ti chiede conteggi sulle parole o analisi legate alla marketing intelligence e al posizionamento del testo, fai riferimento al blocco delle frequenze della Word Cloud o estrai i termini chiave dalle righe con i punteggi di sentiment più alti.
-            4. Sii un consulente B2B serio, diretto, preciso al millesimo sui numeri e orientato al business strategico. Evita i preamboli inutili o risposte elusive da AI standard.
+            4. Sii un consulente B2B serio, directo, preciso al millesimo sui numeri e orientato al business strategico. Evita i preamboli inutili o risposte elusive da AI standard.
             """
 
             try:
