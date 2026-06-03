@@ -25,7 +25,7 @@ try:
 except Exception:
     openai_key = None
 
-# --- GESTIONE DELLO STATO DELL'APPLICAZIONE (3 FASI) ---
+# --- GESTIONE DELLO STATO DELL'APPLICAZIONE (3 FASI + TIP BOTTONE) ---
 if "fase_navigazione" not in st.session_state:
     st.session_state.fase_navigazione = 1  # Fase 1: Nazione, Fase 2: Territorio, Fase 3: Dashboard
 if "nazione_scelta" not in st.session_state:
@@ -36,6 +36,10 @@ if "livello_scelto" not in st.session_state:
     st.session_state.livello_scelto = "Intero Comparto Regionale"
 if "cantina_scelta" not in st.session_state:
     st.session_state.cantina_scelta = None
+
+# Indice per far ruotare i consigli di Bunchy nella dashboard
+if "indice_consiglio" not in st.session_state:
+    st.session_state.indice_consiglio = 0
 
 # ==============================================================================
 # FASE 1: SELEZIONE DELLA NAZIONE TARGET (Sidebar Nascosta)
@@ -221,17 +225,57 @@ elif st.session_state.fase_navigazione == 3:
     else:
         st.info("Testo insufficiente per estrarre parole chiave.")
 
-    # --- REGISTRO ANALITICO ---
+    # --- MODIFICA 1: REGISTRO ANALITICO CON INSERIMENTO DEL NOME DEL CRITICO ---
+    # Se la colonna 'taster_name' non esiste o ha dei vuoti, usiamo un ripiego sicuro per evitare crash
+    colonne_registro = ['full_name', 'winery_name', 'wine_type', 'points', 'price', 'sentiment_score']
+    nomi_colonne_mappate = {
+        'full_name': 'Nome Vino / Titolo', 
+        'winery_name': 'Azienda / Cantina', 
+        'wine_type': 'Tipologia', 
+        'points': 'Punteggio', 
+        'price': 'Prezzo ($)', 
+        'sentiment_score': 'Sentiment Score',
+        'description': 'Testo Recensione'
+    }
+
+    if 'taster_name' in df_filtrato.columns:
+        colonne_registro.append('taster_name')
+        nomi_colonne_mappate['taster_name'] = 'Autore Recensione / Critico'
+    
+    colonne_registro.append('description')
+
     with st.expander("📋 Visualizza il Registro Analitico dei Record di Mercato", expanded=False):
-        st.dataframe(df_filtrato[['full_name', 'winery_name', 'wine_type', 'points', 'price', 'sentiment_score', 'description']].rename(
-            columns={'full_name': 'Nome Vino / Titolo', 'winery_name': 'Azienda / Cantina', 'wine_type': 'Tipologia', 'points': 'Punteggio', 'price': 'Prezzo ($)', 'sentiment_score': 'Sentiment Score', 'description': 'Testo Recensione'}
-        ), use_container_width=True)
+        st.dataframe(df_filtrato[colonne_registro].rename(columns=nomi_colonne_mappate), use_container_width=True)
 
     st.markdown("---")
 
-    # --- 🤖 SEZIONE GPT AUTOMATIZZATA CON FALLBACK ANTI-CRASH SUI TOKEN ---
+    # ==============================================================================
+    # 🤖 SEZIONE GPT AUTOMATIZZATA CON DIALOGO DEI CONSIGLI STRATEGICI ALTERNATI
+    # ==============================================================================
     st.subheader("🤖 Bunchy: Generative AI Specialist")
     
+    # --- MODIFICA 2: CONTENITORE DINAMICO DEI CONSIGLI CON FRECCIA/BOTTONE ---
+    elenco_consigli = [
+        "💡 **Consiglio Analitico (Prezzi e Numeri):** Chiedimi *'Qual è il vino con il prezzo più basso e che punteggio ha?'* oppure *'Quale azienda ha la media voto più alta?'* per scovare i best-buy del mercato.",
+        "📊 **Consiglio Strategico (Confronti Competitivi):** Prova a chiedermi *'Fammi un confronto tra le due cantine principali della selezione per capire chi ha il sentiment migliore della critica'*, ti aiuterò a mappare il posizionamento dei competitor.",
+        "✍️ **Consiglio di Marketing (Copywriting & Parole chiave):** Chiedimi *'Quali sono le parole più usate nelle recensioni con sentiment positivo superiore a 0.5?'* per scoprire quali termini fanno breccia nella mente dei critici esteri.",
+        "🎯 **Consiglio Linguistico (Lessico Emozionale):** Chiedimi *'Quali termini descrittivi o sensoriali vengono ripetuti più spesso in questa Word Cloud?'* per estrarre la semantica ideale per i tuoi comunicati stampa di export."
+    ]
+    
+    # Layout a due colonne per mostrare il consiglio corrente e il bottone di cambio
+    col_testo_consiglio, col_bottone_cambio = st.columns([5, 1])
+    
+    with col_testo_consiglio:
+        st.info(elenco_consigli[st.session_state.indice_consiglio])
+        
+    with col_bottone_cambio:
+        if st.button("Altro consiglio 🔄", use_container_width=True):
+            st.session_state.indice_consiglio = (st.session_state.indice_consiglio + 1) % len(elenco_consigli)
+            st.rerun()
+            
+    st.markdown("##")
+
+    # --- LOGICA STANDARD DELLA CHAT DI BUNCHY ---
     if "last_selected_region" not in st.session_state or st.session_state.last_selected_region != regione_selezionata:
         st.session_state.messages = []
         st.session_state.last_selected_region = regione_selezionata
@@ -262,7 +306,7 @@ elif st.session_state.fase_navigazione == 3:
             
             lista_vini_raw = ""
             for idx, r in df_contesto.iterrows():
-                lista_vini_raw += f"Etichetta: {r['full_name']} | Azienda: {r['winery_name']} | Prezzo: {r['price']}$ | Punteggio: {r['points']}/100 | SentimentScore: {r['sentiment_score']} ({r['sentiment_label']})\n"
+                lista_vini_raw += f"Etichetta: {r['full_name']} | Azienda: {r['winery_name']} | Prezzo: {r['price']} $ | Punteggio: {r['points']}/100 | SentimentScore: {r['sentiment_score']} ({r['sentiment_label']})\n"
 
             df_medie_regionali = df_regione.groupby('winery_name').agg(
                 sentiment_medio=('sentiment_score', 'mean'),
@@ -291,21 +335,18 @@ elif st.session_state.fase_navigazione == 3:
             REGOLE DI RISPOSTA ASSOLUTE:
             1. Quando l'utente ti chiede un dato numerico (es. "qual è il prezzo più basso?", "chi ha il sentiment peggiore?", "trova il punteggio massimo"), tu DEVI analizzare l'elenco dei vini fornito sopra, trovare il record con il valore minimo o massimo richiesto e riportare fedelmente il nome del vino, la cantina e la cifra esatta.
             2. Se l'utente ti chiede informazioni o confronti complessi che richiedono il calcolo di troppi record, rispondi basandoti unicamente sulle tabelle di riepilogo fornite sopra.
-            3. Se l'utente ti chiede conteggi sulle parole, fai riferimento al blocco "Frequenze esatte della Word Cloud" ignorando maiuscole e minuscole.
+            3. Se l'utente ti chiede conteggi sulle parole o analisi legate alla marketing intelligence e al posizionamento del testo, fai riferimento al blocco delle frequenze della Word Cloud o estrai i termini chiave dalle righe con i punteggi di sentiment più alti.
             4. Sii un consulente B2B serio, diretto, preciso al millesimo sui numeri e orientato al business strategico. Evita i preamboli inutili o risposte elusive da AI standard.
             """
 
-            # 🛠️ GESTIONE CONTROLLO TOKEN PRE-CHIAMATA ED ECCEZIONE CORRETTA SUL CODICE 400
             try:
                 api_messages = [{"role": "system", "content": system_instruction}]
                 for msg in st.session_state.messages[-5:]:
                     api_messages.append({"role": msg["role"], "content": msg["content"]})
                 
-                # Calcolo stringa di input per verificare la lunghezza a monte
                 testo_totale_da_inviare = "".join([m["content"] for m in api_messages])
                 token_stimati = int(len(testo_totale_da_inviare.split()) * 1.35)
                 
-                # Soglia di sicurezza fissa (95k token per gpt-4o-mini per stare tranquilli)
                 if token_stimati > 95000:
                     risposta_fallback = (
                         "🤖 **Nota di Bunchy:** Questa query richiede l'elaborazione simultanea di un volume di dati "
@@ -316,7 +357,7 @@ elif st.session_state.fase_navigazione == 3:
                     )
                     with st.chat_message("assistant", avatar="🤖"):
                         st.markdown(risposta_fallback)
-                    st.session_state.messages.append({"role": "assistant", "content": respuesta_fallback})
+                    st.session_state.messages.append({"role": "assistant", "content": risposta_fallback})
                 
                 else:
                     client = OpenAI(api_key=openai_key)
@@ -333,7 +374,6 @@ elif st.session_state.fase_navigazione == 3:
                     st.session_state.messages.append({"role": "assistant", "content": risposta_llm})
                     
             except Exception as e:
-                # Intercettazione totale: se fallisce per qualsiasi motivo o per errore 400 imprevisto, mostra questo testo pulito
                 risposta_cortesia_errore = (
                     "🤖 **Bunchy:** La mole di dati analitici per questa specifica richiesta supera i limiti attuali di memoria della chat. "
                     "Per favore, utilizza i filtri della dashboard a sinistra per isolare un set di dati più ristretto (selezionando una cantina o riducendo il comparto) così da poterti dare una risposta precisa."
