@@ -57,15 +57,15 @@ if st.session_state.fase_navigazione == 1:
     
     nazione_iniziale = st.selectbox(
         "Seleziona la Nazione Target:", 
-        ["-- Scegli una Nazione --", "Stati Uniti 🇺🇸", "Regno Unito 🇬🇧", "Germania 🇩🇪", "Giappone 🇯🇵"]
+        ["-- Scegli una Nazione --", "Stati Uniti", "Regno Unito", "Germania", "Giappone"]
     )
     
     st.markdown("##")
     if st.button("Procedi ➡️", use_container_width=True):
         if nazione_iniziale == "-- Scegli una Nazione --":
             st.warning("⚠️ Per procedere devi obbligatoriamente selezionare una nazione.")
-        elif nazione_iniziale != "Stati Uniti 🇺🇸":
-            st.info(f"💼 **Modulo {nazione_iniziale} in fase di Roll-out.** I dati sono in fase di elaborazione strategica. Seleziona 'Stati Uniti 🇺🇸' per testare l'MVP della piattaforma.")
+        elif nazione_iniziale != "Stati Uniti":
+            st.info(f"💼 **Modulo {nazione_iniziale} in fase di Roll-out.** I dati sono in fase di elaborazione strategica. Seleziona 'Stati Uniti' per testare l'MVP della piattaforma.")
         else:
             st.session_state.nazione_scelta = nazione_iniziale
             st.session_state.fase_navigazione = 2
@@ -110,7 +110,7 @@ elif st.session_state.fase_navigazione == 2:
             
     with col_btn_go:
         if st.button("🚀 Avvia Piattaforma e Genera Report", use_container_width=True):
-            if regione_iniziale == "-- Scegli una Regione --":
+            if regione_iniziale == "-- S Scegli una Regione --" or regione_iniziale == "-- Scegli una Regione --":
                 st.warning("⚠️ Seleziona una Regione valida per generare i grafici.")
             else:
                 st.session_state.regione_scelta = regione_iniziale
@@ -124,14 +124,25 @@ elif st.session_state.fase_navigazione == 2:
 # ==============================================================================
 elif st.session_state.fase_navigazione == 3:
     
-    # Mappatura per estrarre l'emoji corretta o isolata per la visualizzazione grafica in alto
-    bandiera_mappa = {"Stati Uniti 🇺🇸": "🇺🇸", "Regno Unito 🇬🇧": "🇬🇧", "Germania 🇩🇪": "🇩🇪", "Giappone 🇯🇵": "🇯🇵"}
-    emoji_bandiera = bandiera_mappa.get(st.session_state.nazione_scelta, "🌐")
-    nome_nazione_pulito = st.session_state.nazione_scelta.replace(" 🇺🇸", "").replace(" 🇬🇧", "").replace(" 🇩🇪", "").replace(" 🇯🇵", "")
+    # Mappatura sicura con link diretti alle immagini SVG delle bandiere (Funziona ovunque, anche su Windows!)
+    url_bandiere = {
+        "Stati Uniti": "https://flagcdn.com/w160/us.png",
+        "Regno Unito": "https://flagcdn.com/w160/gb.png",
+        "Germania": "https://flagcdn.com/w160/de.png",
+        "Giappone": "https://flagcdn.com/w160/jp.png"
+    }
+    flag_src = url_bandiere.get(st.session_state.nazione_scelta, "https://flagcdn.com/w160/un.png")
 
-    # ✅ INSERIMENTO DELLA BANDIERA NELLA BARRA LATERALE IN ALTO (Con scritta sotto)
-    st.sidebar.markdown(f"<h1 style='text-align: center; font-size: 80px; margin-bottom: 0px;'>{emoji_bandiera}</h1>", unsafe_allow_html=True)
-    st.sidebar.markdown(f"<p style='text-align: center; font-weight: bold; font-size: 16px; margin-top: 0px;'>Mercato Target: {nome_nazione_pulito}</p>", unsafe_allow_html=True)
+    # ✅ INSERIMENTO IMMAGINE BANDIERA AD ALTA DEFINIZIONE NELLA BARRA LATERALE IN ALTO
+    st.sidebar.markdown(
+        f"""
+        <div style="text-align: center; margin-top: 10px; margin-bottom: 5px;">
+            <img src="{flag_src}" width="110" style="border-radius: 6px; box-shadow: 0px 2px 6px rgba(0,0,0,0.3);">
+        </div>
+        """, 
+        unsafe_allow_html=True
+    )
+    st.sidebar.markdown(f"<p style='text-align: center; font-weight: bold; font-size: 18px; margin-top: 5px; color: #ffffff;'>{st.session_state.nazione_scelta.upper()}</p>", unsafe_allow_html=True)
     st.sidebar.markdown("---")
 
     st.sidebar.header("Configurazione Analisi")
@@ -235,7 +246,7 @@ elif st.session_state.fase_navigazione == 3:
     else:
         st.info("Testo insufficiente per estrarre parole chiave.")
 
-    # --- REGISTRO ANALITICO CON AUTORE DELLA RECENSIONE ---
+    # --- REGISTRO ANALITICO CON CRITICO INCLUSO ---
     colonne_registro = ['full_name', 'winery_name', 'wine_type', 'points', 'price', 'sentiment_score']
     nomi_colonne_mappate = {
         'full_name': 'Nome Vino / Titolo', 
@@ -266,7 +277,7 @@ elif st.session_state.fase_navigazione == 3:
     elenco_consigli = [
         "💡 **Consiglio Analitico (Prezzi e Numeri):** Chiedimi *'Qual è il vino con il prezzo più basso e che punteggio ha?'* oppure *'Quale azienda ha la media voto più alta?'* per scovare i best-buy del mercato.",
         "📊 **Consiglio Strategico (Confronti Competitivi):** Prova a chiedermi *'Fammi un confronto tra le due cantine principali della selezione per capire chi ha il sentiment migliore della critica'*, ti aiuterò a mappare il posizionamento dei competitor.",
-        "✍️ **Consiglio di Marketing (Copywriting & Parole chiave):** Chiedimi *'Quali sono le parole più usate nelle recensioni con sentiment positivo superiore a 0.5?'* per scoprire quali termini fanno breccia nella mente dei critici esteri.",
+        "✍️ **Consiglio di Marketing (Copywriting & Parole chiave):** Chiedimi *'Qual sono le parole più usate nelle recensioni con sentiment positivo superiore a 0.5?'* per scoprire quali termini fanno breccia nella mente dei critici esteri.",
         "🎯 **Consiglio Linguistico (Lessico Emozionale):** Chiedimi *'Quali termini descrittivi o sensoriali vengono ripetuti più spesso in questa Word Cloud?'* per estrarre la semantica ideale per i tuoi comunicati stampa di export."
     ]
     
@@ -280,7 +291,8 @@ elif st.session_state.fase_navigazione == 3:
             st.session_state.indice_consiglio = (st.session_state.indice_consiglio + 1) % len(elenco_consigli)
             st.rerun()
             
-    st.markdown("##")
+    # ✅ FIX 1: Spazio verticale ottimizzato per avvicinare la chat alla box dei consigli
+    st.markdown("<div style='margin-top: -15px;'></div>", unsafe_allow_html=True)
 
     if "last_selected_region" not in st.session_state or st.session_state.last_selected_region != regione_selezionata:
         st.session_state.messages = []
@@ -341,7 +353,7 @@ elif st.session_state.fase_navigazione == 3:
             1. Quando l'utente ti chiede un dato numerico (es. "qual è il prezzo più basso?", "chi ha il sentiment peggiore?", "trova il punteggio massimo"), tu DEVI analizzare l'elenco dei vini fornito sopra, trovare il record con il valore minimo o massimo richiesto e riportare fedelmente il nome del vino, la cantina e la cifra esatta.
             2. Se l'utente ti chiede informazioni o confronti complessi che richiedono il calcolo di troppi record, rispondi basandoti unicamente sulle tabelle di riepilogo fornite sopra.
             3. Se l'utente ti chiede conteggi sulle parole o analisi legate alla marketing intelligence e al posizionamento del testo, fai riferimento al blocco delle frequenze della Word Cloud o estrai i termini chiave dalle righe con i punteggi di sentiment più alti.
-            4. Sii un consulente B2B serio, directo, preciso al millesimo sui numeri e orientato al business strategico. Evita i preamboli inutili o risposte elusive da AI standard.
+            4. Sii un consulente B2B serio, diretto, preciso al millesimo sui numeri e orientato al business strategico. Evita i preamboli inutili o risposte elusive da AI standard.
             """
 
             try:
@@ -376,7 +388,7 @@ elif st.session_state.fase_navigazione == 3:
                     risposta_llm = response.choices[0].message.content
                     with st.chat_message("assistant", avatar="🤖"):
                         st.markdown(risposta_llm)
-                    st.session_state.messages.append({"role": "assistant", "content": risposta_llm})
+                    st.session_state.messages.append({"role": "assistant", "content": respuesta_llm})
                     
             except Exception as e:
                 risposta_cortesia_errore = (
