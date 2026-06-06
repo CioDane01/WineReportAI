@@ -13,6 +13,10 @@ def load_data():
     df_load = pd.read_csv("dataset_vini_intelligence.csv")
     df_load['rating'] = ((df_load['points'] - 75) / 19 * 5).round(1)
     df_load['rating'] = df_load['rating'].clip(lower=1.0, upper=5.0)
+    
+    # 🛡️ MECCANISMO PARACADUTE AUTOMATICO AGAINST KEYERROR
+    if 'description_clean' not in df_load.columns and 'description' in df_load.columns:
+        df_load['description_clean'] = df_load['description']
     return df_load
 
 # ✅ DF DEFINITO IMMEDIATAMENTE QUI (Evita il NameError)
@@ -88,13 +92,13 @@ elif st.session_state.fase_navigazione == 2:
     col_reg, col_liv = st.columns(2)
     
     with col_reg:
-        regione_iniziale = st.selectbox("Seleziona il Territorio d'origine:", ["-- Scegli una Regione --"] + regioni_disponibili)
+        regione_iniziale = st.selectbox("Seleziona the Territorio d'origine:", ["-- S Scegli una Regione --"] + regioni_disponibili)
     
     with col_liv:
         livello_iniziale = st.radio("Scegli il livello di profondità dell'analisi:", ["Intero Comparto Regionale", "Singola Cantina Specifica"])
     
     cantina_iniziale = None
-    if livello_iniziale == "Singola Cantina Specifica" and regione_iniziale != "-- Scegli una Regione --":
+    if livello_iniziale == "Singola Cantina Specifica" and regione_iniziale != "-- S Scegli una Regione --":
         df_regione_init = df[df['region'] == regione_iniziale]
         cantine_disponibili_init = sorted(df_regione_init['winery_name'].unique())
         cantina_iniziale = st.selectbox("Seleziona la Cantina specifica da monitorare:", cantine_disponibili_init)
@@ -110,7 +114,7 @@ elif st.session_state.fase_navigazione == 2:
             
     with col_btn_go:
         if st.button("🚀 Avvia Piattaforma e Genera Report", use_container_width=True):
-            if regione_iniziale == "-- S Scegli una Regione --" or regione_iniziale == "-- Scegli una Regione --":
+            if regione_iniziale == "-- S Scegli una Regione --":
                 st.warning("⚠️ Seleziona una Regione valida per generare i grafici.")
             else:
                 st.session_state.regione_scelta = regione_iniziale
@@ -124,7 +128,6 @@ elif st.session_state.fase_navigazione == 2:
 # ==============================================================================
 elif st.session_state.fase_navigazione == 3:
     
-    # Mappatura sicura con link diretti alle immagini SVG delle bandiere (Funziona ovunque, anche su Windows!)
     url_bandiere = {
         "Stati Uniti": "https://flagcdn.com/w160/us.png",
         "Regno Unito": "https://flagcdn.com/w160/gb.png",
@@ -133,7 +136,6 @@ elif st.session_state.fase_navigazione == 3:
     }
     flag_src = url_bandiere.get(st.session_state.nazione_scelta, "https://flagcdn.com/w160/un.png")
 
-    # ✅ INSERIMENTO IMMAGINE BANDIERA AD ALTA DEFINIZIONE NELLA BARRA LATERALE IN ALTO
     st.sidebar.markdown(
         f"""
         <div style="text-align: center; margin-top: 10px; margin-bottom: 5px;">
@@ -246,7 +248,7 @@ elif st.session_state.fase_navigazione == 3:
     else:
         st.info("Testo insufficiente per estrarre parole chiave.")
 
-    # --- REGISTRO ANALITICO CON CRITICO INCLUSO ---
+    # --- REGISTRO ANALITICO ---
     colonne_registro = ['full_name', 'winery_name', 'wine_type', 'points', 'price', 'sentiment_score']
     nomi_colonne_mappate = {
         'full_name': 'Nome Vino / Titolo', 
@@ -291,7 +293,6 @@ elif st.session_state.fase_navigazione == 3:
             st.session_state.indice_consiglio = (st.session_state.indice_consiglio + 1) % len(elenco_consigli)
             st.rerun()
             
-    # ✅ FIX 1: Spazio verticale ottimizzato per avvicinare la chat alla box dei consigli
     st.markdown("<div style='margin-top: -15px;'></div>", unsafe_allow_html=True)
 
     if "last_selected_region" not in st.session_state or st.session_state.last_selected_region != regione_selezionata:
@@ -353,24 +354,27 @@ elif st.session_state.fase_navigazione == 3:
             1. Quando l'utente ti chiede un dato numerico (es. "qual è il prezzo più basso?", "chi ha il sentiment peggiore?", "trova il punteggio massimo"), tu DEVI analizzare l'elenco dei vini fornito sopra, trovare il record con il valore minimo o massimo richiesto e riportare fedelmente il nome del vino, la cantina e la cifra esatta.
             2. Se l'utente ti chiede informazioni o confronti complessi che richiedono il calcolo di troppi record, rispondi basandoti unicamente sulle tabelle di riepilogo fornite sopra.
             3. Se l'utente ti chiede conteggi sulle parole o analisi legate alla marketing intelligence e al posizionamento del testo, fai riferimento al blocco delle frequenze della Word Cloud o estrai i termini chiave dalle righe con i punteggi di sentiment più alti.
-            4. Sii un consulente B2B serio, diretto, preciso al millesimo sui numeri e orientato al business strategico. Evita i preamboli inutili o risposte elusive da AI standard.
+            4. Sii un consulente B2B serio, directo, preciso al millesimo sui numeri e orientato al business strategico. Evita i preamboli inutili o risposte elusive da AI standard.
             """
 
             try:
                 api_messages = [{"role": "system", "content": system_instruction}]
-                for msg in st.session_state.messages[-5:]:
+                
+                # Sfoltimento della cronologia: se l'utente parla troppo, teniamo solo gli ultimi scambi
+                # per evitare che i vecchi messaggi accumulino token inutili sforando i limiti.
+                for msg in st.session_state.messages[-4:]:
                     api_messages.append({"role": msg["role"], "content": msg["content"]})
                 
                 testo_totale_da_inviare = "".join([m["content"] for m in api_messages])
                 token_stimati = int(len(testo_totale_da_inviare.split()) * 1.35)
                 
-                if token_stimati > 95000:
+                # ✅ SOGLIA DEL TOKEN GUARD ALZATA A 120.000 TOKEN (Massima capienza GPT-4o-mini)
+                if token_stimati > 120000:
                     risposta_fallback = (
-                        "🤖 **Nota di Bunchy:** Questa query richiede l'elaborazione simultanea di un volume di dati "
-                        "troppo elevato per le capacità di un singolo prompt di chat (limite di token superato).\n\n"
-                        "💡 **Come aggirare il problema:** Prova a restringere l'analisi utilizzando la barra laterale "
-                        "di sinistra (selezionando ad esempio una **Singola Cantina Specifica** anziché l'intero comparto "
-                        "regionale). In questo modo ridurrai le righe in memoria e potrò fornirti all'istante l'analisi esatta!"
+                        "🤖 **Nota di Bunchy:** In questo momento l'area territoriale selezionata contiene un volume di etichette troppo ampio "
+                        "per la memoria di una singola chat.\n\n"
+                        "💡 **Come sbloccarmi all'istante:** Vai sulla dashboard a sinistra e imposta il livello di analisi su **'Singola Cantina Specifica'** "
+                        "selezionando un brand. In questo modo ridurremo l'affollamento dei dati e potrò farti tutti i calcoli al centesimo!"
                     )
                     with st.chat_message("assistant", avatar="🤖"):
                         st.markdown(risposta_fallback)
@@ -388,12 +392,14 @@ elif st.session_state.fase_navigazione == 3:
                     risposta_llm = response.choices[0].message.content
                     with st.chat_message("assistant", avatar="🤖"):
                         st.markdown(risposta_llm)
-                    st.session_state.messages.append({"role": "assistant", "content": respuesta_llm})
+                    st.session_state.messages.append({"role": "assistant", "content": risposta_llm})
                     
             except Exception as e:
+                # ✅ MESSAGGIO DI FALLBACK INTELLIGENTE E COERENTE CON L'INTERFACCIA SULLA SIDEBAR
                 risposta_cortesia_errore = (
-                    "🤖 **Bunchy:** La mole di dati analitici per questa specifica richiesta supera i limiti attuali di memoria della chat. "
-                    "Per favore, utilizza i filtri della dashboard a sinistra per isolare un set di dati più ristretto (selezionando una cantina o riducendo il comparto) così da poterti dare una risposta precisa."
+                    "🤖 **Nota di Bunchy:** La selezione corrente contiene troppi dati aggregati per essere processata in chat.\n\n"
+                    "💡 **Soluzione rapida:** Per favore, utilizza il menu a tendina sulla sinistra e seleziona una **Singola Cantina Specifica**. "
+                    "In questo modo analizzeremo un brand competitor mirato e sbloccherai tutte le risposte analitiche istantaneamente."
                 )
                 with st.chat_message("assistant", avatar="🤖"):
                     st.markdown(risposta_cortesia_errore)
