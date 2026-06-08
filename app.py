@@ -92,13 +92,13 @@ elif st.session_state.fase_navigazione == 2:
     col_reg, col_liv = st.columns(2)
     
     with col_reg:
-        regione_iniziale = st.selectbox("Seleziona the Territorio d'origine:", ["-- S Scegli una Regione --"] + regioni_disponibili)
+        regione_iniziale = st.selectbox("Seleziona the Territorio d'origine:", ["-- Scegli una Regione --"] + regioni_disponibili)
     
     with col_liv:
         livello_iniziale = st.radio("Scegli il livello di profondità dell'analisi:", ["Intero Comparto Regionale", "Singola Cantina Specifica"])
     
     cantina_iniziale = None
-    if livello_iniziale == "Singola Cantina Specifica" and regione_iniziale != "-- S Scegli una Regione --":
+    if livello_iniziale == "Singola Cantina Specifica" and regione_iniziale != "-- Scegli una Regione --":
         df_regione_init = df[df['region'] == regione_iniziale]
         cantine_disponibili_init = sorted(df_regione_init['winery_name'].unique())
         cantina_iniziale = st.selectbox("Seleziona la Cantina specifica da monitorare:", cantine_disponibili_init)
@@ -114,7 +114,7 @@ elif st.session_state.fase_navigazione == 2:
             
     with col_btn_go:
         if st.button("🚀 Avvia Piattaforma e Genera Report", use_container_width=True):
-            if regione_iniziale == "-- S Scegli una Regione --":
+            if regione_iniziale == "-- Scegli una Regione --":
                 st.warning("⚠️ Seleziona una Regione valida per generare i grafici.")
             else:
                 st.session_state.regione_scelta = regione_iniziale
