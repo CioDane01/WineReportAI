@@ -217,6 +217,31 @@ elif st.session_state.fase_navigazione == 3:
         else:
             st.info("Dati sui prezzi non disponibili.")
 
+    # SEGMENTAZIONE EXPORT PER TIPOLOGIA DI VINO
+    st.markdown("##")
+    st.subheader("📊 Segmentazione del Portafoglio Export per Tipologia di Vino")
+    
+    # Raggruppiamo i dati del filtro corrente per Tipologia (wine_type)
+    df_segmentazione = df_filtrato['wine_type'].value_counts().reset_index()
+    df_segmentazione.columns = ['Tipologia', 'Numero Etichette']
+    
+    if len(df_segmentazione) > 0:
+        # Creiamo un grafico a barre orizzontali o verticali accattivante usando i colori del brand vinicolo
+        fig_segmentazione = px.bar(
+            df_segmentazione, 
+            x='Numero Etichette', 
+            y='Tipologia', 
+            orientation='h',
+            color='Tipologia',
+            color_discrete_map={'Rosso': '#800020', 'Bianco': '#f4e7a6', 'Bollicine': '#f39c12'},
+            template='plotly_white',
+            labels={'Numero Etichette': 'Volume di Etichette Recensite', 'Tipologia': 'Categoria Commerciale'}
+        )
+        fig_segmentazione.update_layout(showlegend=False, height=300)
+        st.plotly_chart(fig_segmentazione, use_container_width=True)
+    else:
+        st.info("Dati sulla tipologia di vino non disponibili.")
+
     st.markdown("---")
 
     # --- CLOUD WORD SENSORIALE ---
